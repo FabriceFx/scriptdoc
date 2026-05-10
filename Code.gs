@@ -204,8 +204,11 @@ function exportToMarkdown(scriptId, locale) {
     }
   });
 
-  const folder = DriveApp.getFileById(scriptId).getParents().next();
-  const file = folder.createFile(`${scriptId}_doc.md`, md, MimeType.PLAIN_TEXT);
+  // Get parent folder using Advanced Service
+  const fileMeta = Drive.Files.get(scriptId, {fields: 'parents'});
+  const parentId = fileMeta.parents ? fileMeta.parents[0] : 'root';
+  
+  const file = DriveApp.getFolderById(parentId).createFile(`${scriptId}_doc.md`, md, MimeType.PLAIN_TEXT);
   return file.getUrl();
 }
 
@@ -223,8 +226,9 @@ function saveSettings(settings) {
  */
 function getProjectName(scriptId, t) {
   try {
-    const fileMetadata = DriveApp.getFileById(scriptId);
-    return fileMetadata.getName();
+    // Using Advanced Drive Service (v3) for better compatibility with script files
+    const fileMetadata = Drive.Files.get(scriptId);
+    return fileMetadata.name;
   } catch (e) {
     console.error("Drive Error:", e.message);
     throw new Error(t.errDrive);
