@@ -53,11 +53,14 @@
             <span class="number">3</span>
             <span class="label" data-i18n="stepAI">AI Enhancement (Optional)</span>
           </div>
-          <div class="field">
-            <label for="gemini-key" data-i18n="labelGemini">Gemini API Key</label>
-            <input type="password" id="gemini-key" placeholder="AIza..." style="width: 100%; padding: 10px; border: 1px solid var(--border-color); border-radius: 4px;">
-            <p class="field-info" data-i18n="infoGemini">Uses Gemini to generate detailed descriptions for your functions.</p>
+          <div class="mb-4">
+          <label class="block text-xs font-medium text-gray-500 uppercase mb-1" data-i18n="labelGemini"></label>
+          <div class="flex gap-2">
+            <input type="password" id="gemini-key" class="flex-grow bg-gray-50 border border-gray-200 rounded-lg p-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none" placeholder="AIza...">
+            <button id="test-key-btn" class="px-3 py-2 border border-gray-200 rounded-lg hover:bg-gray-100 transition text-xs font-bold">Test</button>
           </div>
+          <p class="text-[10px] text-gray-400 mt-1" data-i18n="infoGemini"></p>
+        </div>
         </section>
 
         <footer>

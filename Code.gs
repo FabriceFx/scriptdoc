@@ -252,8 +252,17 @@ function askGemini(functionName, sourceCode, apiKey, isFr) {
 }
 
 /**
- * Utility to parse Gemini response JSON
+ * Simple test for Gemini Key
  */
+function testGeminiKey(key) {
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${key}`;
+  const payload = { contents: [{ parts: [{ text: 'hi' }] }] };
+  const options = { method: 'post', contentType: 'application/json', payload: JSON.stringify(payload), muteHttpExceptions: true };
+  try {
+    const response = UrlFetchApp.fetch(url, options);
+    return response.getResponseCode() === 200;
+  } catch (e) { return false; }
+}
 function parseGeminiResponse(responseText) {
   const json = JSON.parse(responseText);
   if (json.candidates && json.candidates[0].content && json.candidates[0].content.parts[0].text) {

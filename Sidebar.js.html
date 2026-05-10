@@ -49,8 +49,24 @@
   function initButtons() {
     document.getElementById('pick-script-btn').addEventListener('click', showPicker);
     document.getElementById('generate-btn').addEventListener('click', generateDoc);
+    document.getElementById('test-key-btn').addEventListener('click', testKey);
     document.getElementById('cancel-btn').addEventListener('click', () => google.script.host.close());
     document.getElementById('close-btn').addEventListener('click', () => google.script.host.close());
+  }
+  
+  function testKey() {
+    const key = document.getElementById('gemini-key').value;
+    if (!key) return alert(TRANSLATIONS.labelGemini);
+    
+    const btn = document.getElementById('test-key-btn');
+    btn.textContent = '...';
+    
+    google.script.run
+      .withSuccessHandler(res => {
+        btn.textContent = res ? '✅' : '❌';
+        setTimeout(() => { btn.textContent = 'Test'; }, 3000);
+      })
+      .testGeminiKey(key);
   }
 
   function showPicker() {
