@@ -173,8 +173,14 @@
     
     google.script.run
       .withSuccessHandler(url => {
-        btn.textContent = 'Export Success!';
+        btn.textContent = TRANSLATIONS.btnMarkdown;
+        btn.disabled = false;
         window.open(url, '_blank');
+      })
+      .withFailureHandler(err => {
+        btn.textContent = TRANSLATIONS.btnMarkdown;
+        btn.disabled = false;
+        showToast('Erreur Export : ' + err.message, 'error');
       })
       .exportToMarkdown(selectedScriptId, USER_LOCALE);
   });

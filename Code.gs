@@ -205,16 +205,16 @@ function exportToMarkdown(scriptId, locale) {
     }
   });
 
-  // Get parent folder or fallback to root
-  let parentId = 'root';
+  let folder;
   try {
     const fileMeta = Drive.Files.get(scriptId, {fields: 'parents'});
-    if (fileMeta.parents && fileMeta.parents.length > 0) parentId = fileMeta.parents[0];
+    const parentId = (fileMeta.parents && fileMeta.parents.length > 0) ? fileMeta.parents[0] : null;
+    folder = parentId ? DriveApp.getFolderById(parentId) : DriveApp.getRootFolder();
   } catch (e) {
-    console.warn("Could not find parent folder, using root.");
+    folder = DriveApp.getRootFolder();
   }
   
-  const file = DriveApp.getFolderById(parentId).createFile(`${scriptId}_doc.md`, md, MimeType.PLAIN_TEXT);
+  const file = folder.createFile(`${scriptId}_doc.md`, md, MimeType.PLAIN_TEXT);
   return file.getUrl();
 }
 
