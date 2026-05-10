@@ -164,11 +164,19 @@ function findMarkerRange(body, start, end) {
   if (startIdx !== -1 && endIdx !== -1 && endIdx >= startIdx) {
     // Remove from end to start to maintain indices
     for (let i = endIdx; i >= startIdx; i--) {
-      // Never remove the very last paragraph if it's the only one left
-      if (body.getNumChildren() > 1) {
-        body.removeChild(body.getChild(i));
+      const child = body.getChild(i);
+      
+      // Check if it's the last paragraph of the body
+      const isLastParagraph = (i === body.getNumChildren() - 1) && 
+                              (child.getType() === DocumentApp.ElementType.PARAGRAPH);
+      
+      if (isLastParagraph || body.getNumChildren() === 1) {
+        // If it's the last one, we just clear its content instead of removing it
+        if (child.getType() === DocumentApp.ElementType.PARAGRAPH) {
+          child.asParagraph().setText("");
+        }
       } else {
-        body.getChild(0).asParagraph().setText("");
+        body.removeChild(child);
       }
     }
     return startIdx;
