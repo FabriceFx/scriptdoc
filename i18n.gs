@@ -42,7 +42,11 @@ const I18N = {
     docNoDesc: "Aucune description disponible.",
     docScopes: "Autorisations requises",
     docRuntime: "Environnement d'exécution",
-    docAiNote: "✨ [Analyse par Gemini AI]"
+    docAiNote: "✨ [Analyse par Gemini AI]",
+    docGenerated: "Généré le",
+    docProjId: "Identifiant du projet",
+    tocNote: "💡 Conseil : Insérez un sommaire via le menu 'Insertion > Sommaire' pour naviguer facilement.",
+    errDrive: "Impossible d'accéder au fichier Drive. Vérifiez les permissions."
   },
   en: {
     // UI - Sidebar
@@ -82,7 +86,11 @@ const I18N = {
     docNoDesc: "No description available.",
     docScopes: "Required Scopes",
     docRuntime: "Runtime Environment",
-    docAiNote: "✨ [Gemini AI Analysis]"
+    docAiNote: "✨ [Gemini AI Analysis]",
+    docGenerated: "Generated on",
+    docProjId: "Project ID",
+    tocNote: "💡 Tip: Insert a Table of Contents via 'Insert > Table of contents' to navigate easily.",
+    errDrive: "Unable to access Drive file. Check permissions."
   }
 };
 

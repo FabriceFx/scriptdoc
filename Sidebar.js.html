@@ -114,19 +114,38 @@
    * GENERATION LOGIC
    */
   function generateDoc() {
-    const template = document.getElementById('template-select').value;
-    const geminiKey = document.getElementById('gemini-key').value;
-    const overlay = document.getElementById('loading-overlay');
+    if (!selectedScriptId) return showToast('Veuillez d\'abord sélectionner un script.', 'error');
     
-    // Save key for next time
-    google.script.run.saveGeminiKey(geminiKey);
-    
-    overlay.classList.remove('hidden');
+    setLoading(true);
+    const settings = {
+      scriptId: selectedScriptId,
+      template: document.getElementById('template-select').value,
+      geminiKey: document.getElementById('gemini-key').value,
+      locale: USER_LOCALE
+    };
 
     google.script.run
-      .withSuccessHandler(onGenerationSuccess)
-      .withFailureHandler(showError)
-      .generateDocumentation(selectedScriptId, template, geminiKey);
+      .withSuccessHandler(res => {
+        setLoading(false);
+        if (res.success) {
+          document.getElementById('res-project-name').textContent = res.projectName;
+          document.getElementById('res-template').textContent = settings.template;
+          showStep('success');
+        }
+      })
+      .withFailureHandler(err => {
+        setLoading(false);
+        showToast('Erreur : ' + err.message, 'error');
+      })
+      .generateDocumentation(settings);
+  }
+
+  function showToast(message, type = 'info') {
+    const toast = document.getElementById('toast');
+    toast.textContent = message;
+    toast.className = 'toast ' + type;
+    toast.classList.remove('hidden');
+    setTimeout(() => toast.classList.add('hidden'), 5000);
   }
 
   function onGenerationSuccess(result) {

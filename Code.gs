@@ -47,10 +47,11 @@ function showSidebar() {
   const html = HtmlService.createTemplateFromFile('Sidebar');
   html.locale = locale.startsWith('fr') ? 'fr' : 'en';
   
-  const interface = html.evaluate()
+  const sidebarOutput = html.evaluate()
     .setTitle('ScriptDoc')
-    .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
-  DocumentApp.getUi().showSidebar(interface);
+    .setWidth(300);
+  
+  DocumentApp.getUi().showSidebar(sidebarOutput);
 }
 
 /**
@@ -94,136 +95,137 @@ function getScriptContent(scriptId) {
 
 /**
  * Generates documentation and inserts it into the document.
- * @param {string} scriptId The ID of the script project.
- * @param {string} template The selected template name.
- * @param {string} geminiKey The optional Gemini API key.
+ * @param {object} settings Object containing scriptId, template, geminiKey, and locale.
  */
-function generateDocumentation(scriptId, template, geminiKey) {
+function generateDocumentation(settings) {
+  const t = getI18n(settings.locale);
   const doc = DocumentApp.getActiveDocument();
   const body = doc.getBody();
-  const locale = Session.getActiveUserLocale();
-  const isFr = locale.startsWith('fr');
-  const t = getI18n(locale);
   
-  // 1. Fetch content
-  const content = getScriptContent(scriptId);
-  const files = content.files;
-  const manifest = JSON.parse(files.find(f => f.name === 'appsscript').source);
-  
-  // 2. Metadata retrieval
+  // Persist settings
+  const userProps = PropertiesService.getUserProperties();
+  if (settings.geminiKey) userProps.setProperty('GEMINI_API_KEY', settings.geminiKey);
+  if (settings.template) userProps.setProperty('LAST_TEMPLATE', settings.template);
+
   let projectName = "Project";
   try {
-    const fileMetadata = DriveApp.getFileById(scriptId);
+    const fileMetadata = DriveApp.getFileById(settings.scriptId);
     projectName = fileMetadata.getName();
-  } catch (e) {}
-  
-  // 0. Metadata & Manual TOC Instruction
-  body.appendParagraph(projectName).setHeading(DocumentApp.ParagraphHeading.HEADING1);
-  const tocNote = isFr 
-    ? "💡 Conseil : Insérez un sommaire via le menu 'Insertion > Sommaire' pour naviguer facilement."
-    : "💡 Tip: Insert a Table of Contents via 'Insert > Table of contents' to navigate easily.";
-  body.appendParagraph(tocNote).setItalic(true).setForegroundColor('#666666');
+  } catch (e) {
+    console.error("Drive Error:", e.message);
+    throw new Error(t.errDrive); 
+  }
+
+  // Clear or prepare
   body.appendPageBreak();
   
+  // Title Section
+  body.appendParagraph(projectName).setHeading(DocumentApp.ParagraphHeading.TITLE);
+  body.appendParagraph(`${t.docGenerated} ${new Date().toLocaleDateString()}`).setItalic(true);
+
+  // Table of Contents Note
+  const tocNote = body.appendParagraph(t.tocNote);
+  tocNote.setItalic(true).setForegroundColor('#666666');
+
+  // Fetch Script Content
+  const scriptData = getScriptContent(settings.scriptId);
+  const files = scriptData.files || [];
+
   // Section 1: Overview
-  if (template !== 'api') {
-    body.appendParagraph(t.docOverview).setHeading(DocumentApp.ParagraphHeading.HEADING2);
-    body.appendParagraph(`${t.docContains} ${files.length} ${t.docFiles}.`);
-  }
-
-  // Section 2: Structure
-  if (template !== 'api') {
-    body.appendParagraph(t.docStructure).setHeading(DocumentApp.ParagraphHeading.HEADING2);
-    let structureStr = `${projectName}\n`;
-    files.forEach((f, index) => {
-      const isLast = index === files.length - 1;
-      const prefix = isLast ? '└── ' : '├── ';
-      const ext = f.type === 'SERVER_JS' ? 'gs' : (f.type === 'JSON' ? 'json' : 'html');
-      structureStr += `  ${prefix}${f.name}.${ext}\n`;
-    });
-    const structurePara = body.appendParagraph(structureStr);
-    structurePara.setFontFamily('Roboto Mono').setBackgroundColor('#F1F3F4').setIndentStart(20);
-  }
-
-  // Section 3: Technical Details
-  if (template === 'technical') {
-    body.appendParagraph(t.docConfig).setHeading(DocumentApp.ParagraphHeading.HEADING2);
-    body.appendParagraph(`${t.docRuntime}: ${manifest.runtimeVersion || 'V8'}`);
-    if (manifest.oauthScopes) {
-      body.appendParagraph(t.docScopes).setHeading(DocumentApp.ParagraphHeading.HEADING3);
-      manifest.oauthScopes.forEach(scope => {
-        body.appendParagraph(`• ${scope}`).setGlyphType(DocumentApp.GlyphType.BULLET);
-      });
-    }
-  }
-
-  // Section 4: Functions
-  const funcTitle = template === 'api' ? t.docApiRef : (template === 'technical' ? t.docFunctions : t.docFunctions);
-  body.appendParagraph(funcTitle).setHeading(DocumentApp.ParagraphHeading.HEADING2);
+  body.appendParagraph(t.docOverview).setHeading(DocumentApp.ParagraphHeading.HEADING1);
+  body.appendParagraph(`${t.docProjId}: ${settings.scriptId}`);
   
-  files.forEach((file) => {
-    if (file.type === 'SERVER_JS') {
-      let functions = parseFunctions(file.source);
-      if (template === 'api') functions = functions.filter(f => !f.name.startsWith('_'));
+  // Section 2: Structure
+  body.appendParagraph(t.docStructure).setHeading(DocumentApp.ParagraphHeading.HEADING1);
+  let structureStr = ".\n";
+  files.forEach((file, index) => {
+    const isLast = index === files.length - 1;
+    const prefix = isLast ? "└── " : "├── ";
+    const ext = file.type === 'html' ? 'html' : 'gs';
+    structureStr += `  ${prefix}${file.name}.${ext}\n`;
+  });
+  body.appendParagraph(structureStr)
+    .setFontFamily('Roboto Mono')
+    .setBackgroundColor('#F1F3F4')
+    .setIndentStart(20);
+
+  // Section 3: Detailed Logic
+  const logicTitle = (settings.template === 'api') ? t.docApiRef : t.docFunctions;
+  body.appendParagraph(logicTitle).setHeading(DocumentApp.ParagraphHeading.HEADING1);
+
+  files.forEach(file => {
+    if (file.type === 'server_js' || file.type === 'gs') {
+      const functions = parseFunctions(file.source);
       
       if (functions.length > 0) {
-        body.appendParagraph(file.name).setHeading(DocumentApp.ParagraphHeading.HEADING3);
+        body.appendParagraph(file.name).setHeading(DocumentApp.ParagraphHeading.HEADING2);
+        
+        // BATCH GEMINI CALL per file
+        let aiExplanations = {};
+        if (settings.geminiKey) {
+          aiExplanations = askGeminiBatch(file.name, functions, file.source, settings.geminiKey, settings.locale.startsWith('fr'));
+        }
+
         functions.forEach(func => {
-          body.appendParagraph(`${func.name}()`)
-            .setHeading(DocumentApp.ParagraphHeading.HEADING4)
-            .setFontFamily('Roboto Mono')
-            .setForegroundColor('#1a73e8');
+          const funcPara = body.appendParagraph(`${func.name}()`);
+          funcPara.setHeading(DocumentApp.ParagraphHeading.HEADING3)
+                  .setFontFamily('Roboto Mono')
+                  .setForegroundColor('#1a73e8');
           
-          let description = func.description || t.docNoDesc;
+          // Documentation text
+          let docText = "";
           
-          // AI Retro-documentation
-          if (geminiKey && (!func.description || template === 'technical')) {
-            const aiDesc = askGemini(func.name, file.source, geminiKey, locale.startsWith('fr'));
-            if (aiDesc) {
-              description = aiDesc;
-              body.appendParagraph(t.docAiNote).setItalic(true).setFontSize(8).setForegroundColor('#1a73e8');
+          // JSDoc Description
+          if (func.description) docText += `${func.description}\n`;
+          
+          // AI Explanation (from batch)
+          if (aiExplanations[func.name]) {
+            docText += `✨ ${aiExplanations[func.name]}\n`;
+          }
+
+          // Params & Returns (API Template)
+          if (settings.template === 'api' && (func.params.length > 0 || func.returns)) {
+            if (func.params.length > 0) {
+              docText += `\nParameters:\n` + func.params.map(p => `• ${p.name}: ${p.description}`).join('\n') + `\n`;
+            }
+            if (func.returns) {
+              docText += `\nReturns: ${func.returns}\n`;
             }
           }
-          
-          body.appendParagraph(description).setItalic(false).setForegroundColor('#000000');
+
+          if (docText) {
+            body.appendParagraph(docText.trim());
+          } else {
+            body.appendParagraph(t.docNoDesc).setItalic(true);
+          }
         });
       }
     }
   });
 
-  // Save template & key for next time
-  PropertiesService.getUserProperties().setProperties({
-    'GEMINI_API_KEY': geminiKey || '',
-    'LAST_TEMPLATE': template
-  });
-
-  return {
-    success: true,
-    projectName: projectName,
-    template: template
-  };
+  return { success: true, projectName: projectName };
 }
 
 /**
- * Calls Gemini AI to explain a function.
+ * Calls Gemini AI to explain all functions in a file at once (Batching).
+ * Prevents timeouts and ensures better context.
  */
-function askGemini(functionName, sourceCode, apiKey, isFr) {
+function askGeminiBatch(fileName, functions, sourceCode, apiKey, isFr) {
   const models = ['gemini-3-flash', 'gemini-2.0-flash'];
   
+  const functionList = functions.map(f => f.name).join(', ');
   const systemInstruction = isFr 
-    ? "Tu es un expert Google Apps Script. Analyse le code fourni et explique la logique métier de la fonction demandée de manière technique et concise (2 phrases max)."
-    : "You are a Google Apps Script expert. Analyze the provided code and explain the business logic of the requested function in a technical and concise manner (2 sentences max).";
+    ? "Tu es un expert Google Apps Script. Analyse le code source fourni et explique brièvement la logique métier de chaque fonction listée. Ta réponse doit être un objet JSON pur où chaque clé est le nom de la fonction et chaque valeur est son explication technique (1-2 phrases)."
+    : "You are a Google Apps Script expert. Analyze the provided source code and briefly explain the business logic of each listed function. Your response must be a pure JSON object where each key is the function name and each value is its technical explanation (1-2 sentences).";
 
   const payload = {
-    system_instruction: {
-      parts: [{ text: systemInstruction }]
-    },
+    system_instruction: { parts: [{ text: systemInstruction }] },
     contents: [{
-      parts: [{ text: `Explique la fonction : ${functionName}\n\nCode :\n${sourceCode}` }]
+      parts: [{ text: `Fichier : ${fileName}\nFonctions à analyser : ${functionList}\n\nCode Source :\n${sourceCode}` }]
     }],
     generationConfig: {
-      temperature: 0.2,
-      maxOutputTokens: 512
+      temperature: 0.1,
+      response_mime_type: "application/json"
     }
   };
 
@@ -238,24 +240,20 @@ function askGemini(functionName, sourceCode, apiKey, isFr) {
     const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
     try {
       const response = UrlFetchApp.fetch(url, options);
-      const responseCode = response.getResponseCode();
-      
-      if (responseCode === 200) {
-        return parseGeminiResponse(response.getContentText());
-      } else if (responseCode !== 404) {
-        // Stop if error is not 404 (e.g. 401, 429)
-        return `[IA Error ${responseCode}]`;
+      if (response.getResponseCode() === 200) {
+        const json = JSON.parse(response.getContentText());
+        const resultText = json.candidates?.[0]?.content?.parts?.[0]?.text;
+        if (resultText) return JSON.parse(resultText);
       }
     } catch (e) {
-      console.error(`Gemini ${model} Fetch Error:`, e.message);
+      console.error(`Batch Gemini Error (${model}):`, e.message);
     }
   }
-  
-  return "[IA Error]";
+  return {};
 }
 
 /**
- * Simple test for Gemini Key
+ * Utility to parse Gemini response JSON
  */
 function testGeminiKey(key) {
   const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${key}`;
@@ -266,49 +264,49 @@ function testGeminiKey(key) {
     return response.getResponseCode() === 200;
   } catch (e) { return false; }
 }
+
 function parseGeminiResponse(responseText) {
-  const json = JSON.parse(responseText);
-  if (json.candidates && json.candidates[0].content && json.candidates[0].content.parts[0].text) {
-    let text = json.candidates[0].content.parts[0].text.trim();
-    text = text.replace(/^(La fonction|Cette fonction|This function) \w+ /i, '');
-    return text.charAt(0).toUpperCase() + text.slice(1);
-  }
+  try {
+    const json = JSON.parse(responseText);
+    const text = json.candidates?.[0]?.content?.parts?.[0]?.text;
+    if (text) {
+      let cleaned = text.trim().replace(/^(La fonction|Cette fonction|This function) \w+ /i, '');
+      return cleaned.charAt(0).toUpperCase() + cleaned.slice(1);
+    }
+  } catch (e) {}
   return null;
 }
 
-/**
- * Simple parser to extract function names and JSDoc from source.
- * @param {string} source The GS source code.
- * @return {Array} Array of function objects.
- */
 function parseFunctions(source) {
   const functions = [];
+  // Regex covers: function name(), const name = () =>, name: function(), name() { in classes
+  const funcRegex = /(?:\/\*\*([\s\S]*?)\*\/)?\s*(?:function\s+([\w$]+)|(?:const|let|var)\s+([\w$]+)\s*=\s*(?:async\s*)?\([^)]*\)\s*=>|([\w$]+)\s*\([^)]*\)\s*\{)/g;
   
-  // 1. Detect JSDoc blocks + functions (classic & arrow)
-  const jsDocRegex = /\/\*\*([\s\S]*?)\*\/[\s\n]*(?:function\s+(\w+)|(?:const|let|var)\s+(\w+)\s*=\s*(?:function|\([^)]*\)\s*=>))/g;
   let match;
-  
-  while ((match = jsDocRegex.exec(source)) !== null) {
-    const name = match[2] || match[3];
-    if (name) {
+  while ((match = funcRegex.exec(source)) !== null) {
+    const jsDoc = match[1] || "";
+    const name = match[2] || match[3] || match[4];
+    
+    if (name && !['if', 'for', 'while', 'switch', 'catch'].includes(name)) {
+      // Parse JSDoc for @param and @return
+      const description = jsDoc.replace(/\* @\w+[\s\S]*/g, '').replace(/\*|\n|\s+/g, ' ').trim();
+      
+      const params = [];
+      const paramMatches = jsDoc.matchAll(/@param\s+\{([^}]+)\}\s+([\w$]+)\s*(.*)/g);
+      for (const p of paramMatches) {
+        params.push({ type: p[1], name: p[2], description: (p[3] || "").trim() });
+      }
+      
+      const returnMatch = jsDoc.match(/@return\s+\{([^}]+)\}\s*(.*)/);
+      const returns = returnMatch ? `${returnMatch[1]} - ${(returnMatch[2] || "").trim()}` : null;
+
       functions.push({
         name: name,
-        description: match[1].replace(/\*/g, '').trim()
+        description: description,
+        params: params,
+        returns: returns
       });
     }
   }
-  
-  // 2. Also catch functions without JSDoc (classic & arrow)
-  const simpleRegex = /(?:function\s+(\w+)|(?:const|let|var)\s+(\w+)\s*=\s*(?:function|\([^)]*\)\s*=>))/g;
-  while ((match = simpleRegex.exec(source)) !== null) {
-    const name = match[1] || match[2];
-    if (name && !functions.find(f => f.name === name)) {
-      functions.push({
-        name: name,
-        description: ''
-      });
-    }
-  }
-  
   return functions;
 }

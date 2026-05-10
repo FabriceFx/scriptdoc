@@ -288,4 +288,31 @@ footer {
   background-color: #aecbfa;
   transform: scale(0.95);
 }
+/* MD3 Toast / Snackbar */
+.toast {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #322f35;
+  color: #f5eff7;
+  padding: 12px 24px;
+  border-radius: 4px;
+  font-size: 13px;
+  z-index: 1000;
+  box-shadow: 0 3px 5px rgba(0,0,0,0.2);
+  min-width: 200px;
+  text-align: center;
+  animation: slideUp 0.3s ease;
+}
+
+.toast.error {
+  background: #b3261e;
+  color: white;
+}
+
+@keyframes slideUp {
+  from { bottom: -50px; opacity: 0; }
+  to { bottom: 24px; opacity: 1; }
+}
 </style>
