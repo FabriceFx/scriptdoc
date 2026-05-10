@@ -257,13 +257,19 @@ function processFile(body, file, settings, t) {
 
   body.appendParagraph(file.name).setHeading(DocumentApp.ParagraphHeading.HEADING2);
   
-  let aiExplanations = {};
+  let aiData = { overview: "", functions: {} };
   if (settings.geminiKey) {
-    aiExplanations = askGeminiBatch(file.name, functions, file.source, settings.geminiKey, settings.locale.startsWith('fr'));
+    aiData = askGeminiBatch(file.name, functions, file.source, settings.geminiKey, settings.locale.startsWith('fr'));
+    
+    if (aiData.overview) {
+      const overviewPara = body.appendParagraph(aiData.overview);
+      overviewPara.setItalic(true).setForegroundColor('#5f6368');
+      body.appendParagraph(""); // Spacer
+    }
   }
 
   functions.forEach(func => {
-    renderFunction(body, func, aiExplanations[func.name], settings, t);
+    renderFunction(body, func, aiData.functions[func.name], settings, t);
   });
 }
 
@@ -305,8 +311,14 @@ function askGeminiBatch(fileName, functions, sourceCode, apiKey, isFr) {
   
   const functionList = functions.map(f => f.name).join(', ');
   const systemInstruction = isFr 
-    ? "Tu es un expert Google Apps Script. Analyse le code source fourni et explique brièvement la logique métier de chaque fonction listée. Ta réponse doit être un objet JSON pur où chaque clé est le nom de la fonction et chaque valeur est son explication technique (1-2 phrases)."
-    : "You are a Google Apps Script expert. Analyze the provided source code and briefly explain the business logic of each listed function. Your response must be a pure JSON object where each key is the function name and each value is its technical explanation (1-2 sentences).";
+    ? `Tu es un expert Google Apps Script. Analyse le code source du fichier "${fileName}".
+       Renvoie un objet JSON avec deux clés :
+       1. "overview" : Un résumé global (3-4 phrases) du rôle et du fonctionnement de ce fichier dans le projet.
+       2. "functions" : Un objet où chaque clé est le nom de la fonction et chaque valeur son explication technique détaillée.`
+    : `You are a Google Apps Script expert. Analyze the source code of the file "${fileName}".
+       Return a JSON object with two keys:
+       1. "overview": A concise paragraph (3-4 sentences) explaining the global purpose and logic of this file in the project.
+       2. "functions": An object where each key is the function name and each value is its detailed technical explanation.`;
 
   const payload = {
     system_instruction: { parts: [{ text: systemInstruction }] },
@@ -314,7 +326,7 @@ function askGeminiBatch(fileName, functions, sourceCode, apiKey, isFr) {
       parts: [{ text: `Fichier : ${fileName}\nFonctions à analyser : ${functionList}\n\nCode Source :\n${sourceCode}` }]
     }],
     generationConfig: {
-      temperature: 0.1,
+      temperature: 0.2,
       response_mime_type: "application/json"
     }
   };
@@ -333,13 +345,19 @@ function askGeminiBatch(fileName, functions, sourceCode, apiKey, isFr) {
       if (response.getResponseCode() === 200) {
         const json = JSON.parse(response.getContentText());
         const resultText = json.candidates?.[0]?.content?.parts?.[0]?.text;
-        if (resultText) return JSON.parse(resultText);
+        if (resultText) {
+          const parsed = JSON.parse(resultText);
+          return {
+            overview: parsed.overview || "",
+            functions: parsed.functions || parsed // Fallback if IA returns flat functions
+          };
+        }
       }
     } catch (e) {
       console.error(`Batch Gemini Error (${model}):`, e.message);
     }
   }
-  return {};
+  return { overview: "", functions: {} };
 }
 
 /**
