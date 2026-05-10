@@ -261,4 +261,31 @@ footer {
 @keyframes spin {
   to { transform: rotate(360deg); }
 }
+
+/* MD3 Test Button */
+.test-btn {
+  padding: 8px 16px;
+  background-color: #e8f0fe;
+  color: #1967d2;
+  border: 1px solid #d2e3fc;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 60px;
+}
+
+.test-btn:hover {
+  background-color: #d2e3fc;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+}
+
+.test-btn:active {
+  background-color: #aecbfa;
+  transform: scale(0.95);
+}
 </style>
