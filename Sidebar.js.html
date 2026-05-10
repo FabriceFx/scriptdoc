@@ -1,71 +1,26 @@
 <script>
   /**
-   * I18N SUPPORT
+   * TRANSLATIONS
    */
-  const translations = {
-    fr: {
-      title: "Nouvelle documentation",
-      subtitle: "Configurer & sélectionner",
-      step1: "Choisir un modèle",
-      labelTemplate: "Modèle",
-      optStandard: "Documentation Standard",
-      optTechnical: "Analyse Technique",
-      optApi: "Référence API",
-      infoTemplate: "Couverture équilibrée de tous les aspects",
-      step2: "Sélectionner un projet script",
-      btnPick: "Choisir sur Drive",
-      noFile: "Aucun fichier sélectionné",
-      btnCancel: "← Annuler",
-      btnGenerate: "Générer la documentation",
-      resTitle: "Documentation Générée !",
-      resSubtitle: "Votre documentation a été créée et insérée dans le document actif.",
-      resProject: "Projet :",
-      resTemplate: "Modèle :",
-      btnClose: "Fermer",
-      loading: "Analyse du projet en cours...",
-      stepAI: "Amélioration IA (Optionnel)",
-      labelGemini: "Clé API Gemini",
-      infoGemini: "Utilise Gemini pour générer des descriptions détaillées pour vos fonctions."
-    },
-    en: {
-      title: "Start New Documentation",
-      subtitle: "Configure & Select",
-      step1: "Choose a documentation template",
-      labelTemplate: "Template",
-      optStandard: "Standard Documentation",
-      optTechnical: "Technical Deep-dive",
-      optApi: "API Reference",
-      infoTemplate: "Balanced coverage of all aspects",
-      step2: "Select a script project",
-      btnPick: "Pick Script from Drive",
-      noFile: "No file selected",
-      btnCancel: "← Cancel",
-      btnGenerate: "Generate Documentation",
-      resTitle: "Documentation Generated!",
-      resSubtitle: "Your documentation has been created and inserted into the current document.",
-      resProject: "Project:",
-      resTemplate: "Template:",
-      btnClose: "Close",
-      loading: "Analyzing project...",
-      stepAI: "AI Enhancement (Optional)",
-      labelGemini: "Gemini API Key",
-      infoGemini: "Uses Gemini to generate detailed descriptions for your functions."
-    }
-  };
+  let TRANSLATIONS = {};
 
   function updateUI() {
     const lang = USER_LOCALE || 'en';
-    const t = translations[lang];
-    document.querySelectorAll('[data-i18n]').forEach(el => {
-      const key = el.getAttribute('data-i18n');
-      if (t[key]) {
-        if (el.tagName === 'OPTION') {
-          el.text = t[key];
-        } else {
-          el.textContent = t[key];
-        }
-      }
-    });
+    google.script.run
+      .withSuccessHandler(t => {
+        TRANSLATIONS = t;
+        document.querySelectorAll('[data-i18n]').forEach(el => {
+          const key = el.getAttribute('data-i18n');
+          if (t[key]) {
+            if (el.tagName === 'OPTION') {
+              el.text = t[key];
+            } else {
+              el.textContent = t[key];
+            }
+          }
+        });
+      })
+      .getI18n(lang);
   }
 
   /**

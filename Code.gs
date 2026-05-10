@@ -102,22 +102,8 @@ function generateDocumentation(scriptId, template, geminiKey) {
   const doc = DocumentApp.getActiveDocument();
   const body = doc.getBody();
   const locale = Session.getActiveUserLocale();
-  const isFr = locale.startsWith('fr');
+  const t = getI18n(locale);
   
-  // Translations
-  const t = {
-    overview: isFr ? '1. Aperçu du projet' : '1. Project Overview',
-    structure: isFr ? '2. Diagramme de structure' : '2. Project Structure Diagram',
-    config: isFr ? '3. Configuration & Paramètres' : '3. Configuration & Settings',
-    functions: isFr ? (template === 'api' ? '1. Référence API' : (template === 'technical' ? '4. Fonctions & Méthodes' : '3. Fonctions & Méthodes')) : 'Functions & Methods',
-    contains: isFr ? 'Ce projet Google Apps Script contient' : 'This Google Apps Script project contains',
-    files: isFr ? 'fichiers' : 'files',
-    noDesc: isFr ? 'Aucune description disponible.' : 'No description available.',
-    scopes: isFr ? 'Autorisations requises' : 'Required Scopes',
-    runtime: isFr ? 'Environnement d\'exécution' : 'Runtime Environment',
-    aiGenerated: isFr ? '[Description générée par IA]' : '[AI Generated Description]'
-  };
-
   // 1. Fetch content
   const content = getScriptContent(scriptId);
   const files = content.files;
@@ -137,13 +123,13 @@ function generateDocumentation(scriptId, template, geminiKey) {
   
   // Section 1: Overview
   if (template !== 'api') {
-    body.appendParagraph(t.overview).setHeading(DocumentApp.ParagraphHeading.HEADING2);
-    body.appendParagraph(`${t.contains} ${files.length} ${t.files}.`);
+    body.appendParagraph(t.docOverview).setHeading(DocumentApp.ParagraphHeading.HEADING2);
+    body.appendParagraph(`${t.docContains} ${files.length} ${t.docFiles}.`);
   }
 
   // Section 2: Structure
   if (template !== 'api') {
-    body.appendParagraph(t.structure).setHeading(DocumentApp.ParagraphHeading.HEADING2);
+    body.appendParagraph(t.docStructure).setHeading(DocumentApp.ParagraphHeading.HEADING2);
     let structureStr = `${projectName}\n`;
     files.forEach((f, index) => {
       const isLast = index === files.length - 1;
@@ -157,10 +143,10 @@ function generateDocumentation(scriptId, template, geminiKey) {
 
   // Section 3: Technical Details
   if (template === 'technical') {
-    body.appendParagraph(t.config).setHeading(DocumentApp.ParagraphHeading.HEADING2);
-    body.appendParagraph(`${t.runtime}: ${manifest.runtimeVersion || 'V8'}`);
+    body.appendParagraph(t.docConfig).setHeading(DocumentApp.ParagraphHeading.HEADING2);
+    body.appendParagraph(`${t.docRuntime}: ${manifest.runtimeVersion || 'V8'}`);
     if (manifest.oauthScopes) {
-      body.appendParagraph(t.scopes).setHeading(DocumentApp.ParagraphHeading.HEADING3);
+      body.appendParagraph(t.docScopes).setHeading(DocumentApp.ParagraphHeading.HEADING3);
       manifest.oauthScopes.forEach(scope => {
         body.appendParagraph(`• ${scope}`).setGlyphType(DocumentApp.GlyphType.BULLET);
       });
@@ -168,7 +154,8 @@ function generateDocumentation(scriptId, template, geminiKey) {
   }
 
   // Section 4: Functions
-  body.appendParagraph(t.functions).setHeading(DocumentApp.ParagraphHeading.HEADING2);
+  const funcTitle = template === 'api' ? t.docApiRef : (template === 'technical' ? t.docFunctions : t.docFunctions);
+  body.appendParagraph(funcTitle).setHeading(DocumentApp.ParagraphHeading.HEADING2);
   
   files.forEach((file) => {
     if (file.type === 'SERVER_JS') {
@@ -180,20 +167,14 @@ function generateDocumentation(scriptId, template, geminiKey) {
         functions.forEach(func => {
           body.appendParagraph(`${func.name}()`).setHeading(DocumentApp.ParagraphHeading.HEADING4);
           
-          let description = func.description || t.noDesc;
+          let description = func.description || t.docNoDesc;
           
           // AI Retro-documentation
-          console.log(`Checking AI for ${func.name}. Key provided: ${!!geminiKey}, Description present: ${!!func.description}`);
           if (geminiKey && (!func.description || template === 'technical')) {
-            console.log(`Calling Gemini for ${func.name}...`);
-            const aiDesc = askGemini(func.name, file.source, geminiKey, isFr);
+            const aiDesc = askGemini(func.name, file.source, geminiKey, locale.startsWith('fr'));
             if (aiDesc) {
-              console.log(`Gemini returned success for ${func.name}`);
               description = aiDesc;
-              const aiNote = isFr ? '✨ [Analyse par Gemini AI]' : '✨ [Gemini AI Analysis]';
-              body.appendParagraph(aiNote).setItalic(true).setFontSize(8).setForegroundColor('#1a73e8');
-            } else {
-              console.warn(`Gemini returned null for ${func.name}`);
+              body.appendParagraph(t.docAiNote).setItalic(true).setFontSize(8).setForegroundColor('#1a73e8');
             }
           }
           
