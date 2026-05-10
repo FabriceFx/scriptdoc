@@ -205,52 +205,52 @@ function generateDocumentation(scriptId, template, geminiKey) {
  * Calls Gemini AI to explain a function.
  */
 function askGemini(functionName, sourceCode, apiKey, isFr) {
-  const models = ['gemini-3.0-flash', 'gemini-3-flash', 'gemini-2.0-flash', 'gemini-1.5-flash'];
-  let lastError = '';
-
-  for (const model of models) {
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
-    
-    const systemInstruction = isFr 
-      ? "Tu es un expert Google Apps Script. Analyse le code fourni et explique la logique métier de la fonction demandée de manière technique et concise (2 phrases max)."
-      : "You are a Google Apps Script expert. Analyze the provided code and explain the business logic of the requested function in a technical and concise manner (2 sentences max).";
-
-    const payload = {
-      system_instruction: { parts: [{ text: systemInstruction }] },
-      contents: [{ parts: [{ text: `Explique la fonction: ${functionName}\n\nCode:\n${sourceCode}` }] }],
-      generationConfig: { temperature: 0.2, maxOutputTokens: 300 }
-    };
-
-    const options = {
-      method: 'post',
-      contentType: 'application/json',
-      payload: JSON.stringify(payload),
-      muteHttpExceptions: true
-    };
-
-    try {
-      const response = UrlFetchApp.fetch(url, options);
-      const responseCode = response.getResponseCode();
-      const responseText = response.getContentText();
-      
-      if (responseCode === 200) {
-        const json = JSON.parse(responseText);
-        if (json.candidates && json.candidates[0].content && json.candidates[0].content.parts[0].text) {
-          let text = json.candidates[0].content.parts[0].text.trim();
-          text = text.replace(/^(La fonction|Cette fonction|This function) \w+ /i, '');
-          return text.charAt(0).toUpperCase() + text.slice(1);
-        }
-      } else if (responseCode !== 404) {
-        // If it's not a 404 (e.g. 401, 429), the key or quota is the issue, no need to try other models
-        return `[IA Error ${responseCode}]`;
-      }
-      lastError = `[IA Error ${responseCode}]`;
-    } catch (e) {
-      lastError = `[IA Fetch Error]`;
-    }
-  }
+  // Using gemini-2.0-flash as it is known to work in the user's other projects.
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
   
-  return lastError;
+  const systemInstruction = isFr 
+    ? "Tu es un expert Google Apps Script. Analyse le code fourni et explique la logique métier de la fonction demandée de manière technique et concise (2 phrases max)."
+    : "You are a Google Apps Script expert. Analyze the provided code and explain the business logic of the requested function in a technical and concise manner (2 sentences max).";
+
+  const fullPrompt = `${systemInstruction}\n\nExplique la fonction : ${functionName}\n\nCode :\n${sourceCode}`;
+
+  const payload = {
+    contents: [{
+      parts: [{ text: fullPrompt }]
+    }],
+    generationConfig: {
+      temperature: 0.2,
+      maxOutputTokens: 512
+    }
+  };
+
+  const options = {
+    method: 'post',
+    contentType: 'application/json',
+    payload: JSON.stringify(payload),
+    muteHttpExceptions: true
+  };
+
+  try {
+    const response = UrlFetchApp.fetch(url, options);
+    const responseText = response.getContentText();
+    const responseCode = response.getResponseCode();
+    
+    if (responseCode === 200) {
+      const json = JSON.parse(responseText);
+      if (json.candidates && json.candidates[0].content && json.candidates[0].content.parts[0].text) {
+        let text = json.candidates[0].content.parts[0].text.trim();
+        // Remove generic AI prefixes
+        text = text.replace(/^(La fonction|Cette fonction|This function) \w+ /i, '');
+        return text.charAt(0).toUpperCase() + text.slice(1);
+      }
+    }
+    console.error(`Gemini Error (${responseCode}):`, responseText);
+    return `[IA Error ${responseCode}]`;
+  } catch (e) {
+    console.error('Gemini Fetch Error:', e.message);
+    return `[IA Fetch Error]`;
+  }
 }
 
 /**
