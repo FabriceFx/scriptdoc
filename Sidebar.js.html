@@ -121,24 +121,58 @@
       scriptId: selectedScriptId,
       template: document.getElementById('template-select').value,
       geminiKey: document.getElementById('gemini-key').value,
+      overwrite: document.getElementById('overwrite-check').checked,
       locale: USER_LOCALE
     };
 
+    // Progressive Generation
     google.script.run
       .withSuccessHandler(res => {
-        setLoading(false);
-        if (res.success) {
-          document.getElementById('res-project-name').textContent = res.projectName;
-          document.getElementById('res-template').textContent = settings.template;
-          showStep('success');
-        }
+        processFiles(res.files, 0, settings, res.projectName);
       })
       .withFailureHandler(err => {
         setLoading(false);
         showToast('Erreur : ' + err.message, 'error');
       })
-      .generateDocumentation(settings);
+      .startGeneration(settings);
   }
+
+  function processFiles(files, index, settings, projectName) {
+    if (index >= files.length) {
+      google.script.run
+        .withSuccessHandler(() => {
+          setLoading(false);
+          document.getElementById('res-project-name').textContent = projectName;
+          document.getElementById('res-template').textContent = settings.template;
+          showStep('success');
+        })
+        .finalizeGeneration(settings);
+      return;
+    }
+
+    const file = files[index];
+    document.getElementById('progress-detail').textContent = `Processing (${index + 1}/${files.length}): ${file.name}`;
+    
+    google.script.run
+      .withSuccessHandler(() => {
+        processFiles(files, index + 1, settings, projectName);
+      })
+      .processFileJob(file, settings);
+  }
+
+  // Markdown Export
+  document.getElementById('download-md-btn').addEventListener('click', () => {
+    const btn = document.getElementById('download-md-btn');
+    btn.disabled = true;
+    btn.textContent = 'Exporting...';
+    
+    google.script.run
+      .withSuccessHandler(url => {
+        btn.textContent = 'Export Success!';
+        window.open(url, '_blank');
+      })
+      .exportToMarkdown(selectedScriptId, USER_LOCALE);
+  });
 
   function showToast(message, type = 'info') {
     const toast = document.getElementById('toast');

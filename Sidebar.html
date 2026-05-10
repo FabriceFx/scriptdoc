@@ -63,6 +63,12 @@
           </div>
           <p class="field-info" data-i18n="infoGemini">Uses Gemini to generate detailed descriptions for your functions.</p>
         </div>
+        <div class="field">
+          <label class="checkbox-container">
+            <input type="checkbox" id="overwrite-check">
+            <span data-i18n="labelOverwrite">Replace existing documentation</span>
+          </label>
+        </div>
       </section>
 
       <footer>
@@ -98,13 +104,18 @@
         </div>
 
         <button id="close-btn" class="primary-btn" data-i18n="btnClose">Close</button>
+        <button id="download-md-btn" class="secondary-btn" style="margin-top: 12px; width: 100%;">
+          <i class="fa-solid fa-download"></i>
+          <span data-i18n="btnMarkdown">Export to Markdown (.md)</span>
+        </button>
       </div>
     </div>
 
     <!-- Loading Overlay -->
     <div id="loading-overlay" class="overlay hidden">
       <div class="spinner"></div>
-      <p data-i18n="loading">Analyzing project...</p>
+      <p id="loading-text" data-i18n="loading">Analyzing project...</p>
+      <p id="progress-detail" style="font-size: 11px; color: #aecbfa; margin-top: 8px;"></p>
     </div>
 
     <!-- Toast Container -->

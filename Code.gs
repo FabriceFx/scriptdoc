@@ -106,39 +106,107 @@ function getScriptContent(scriptId) {
  * Generates documentation and inserts it into the document.
  * @param {object} settings Object containing scriptId, template, geminiKey, and locale.
  */
-function generateDocumentation(settings) {
+function startGeneration(settings) {
   const t = getI18n(settings.locale);
-  const doc = DocumentApp.getActiveDocument();
-  const body = doc.getBody();
-  
+  const body = DocumentApp.getActiveDocument().getBody();
   saveSettings(settings);
 
   const projectName = getProjectName(settings.scriptId, t);
   
-  // Clear or prepare
-  body.appendPageBreak();
-  
-  // Title & Header
+  if (settings.overwrite) {
+    const startMarker = "[SCRIPTDOC_START]";
+    const endMarker = "[SCRIPTDOC_END]";
+    findMarkerRange(body, startMarker, endMarker);
+  }
+
+  body.appendParagraph("[SCRIPTDOC_START]").setAttributes({[DocumentApp.Attribute.FONT_SIZE]: 1});
   renderHeader(body, projectName, t, settings.scriptId);
 
-  // Fetch Script Content
   const scriptData = getScriptContent(settings.scriptId);
+  const files = scriptData.files.filter(f => f.type === 'server_js' || f.type === 'gs');
+
+  renderStructure(body, scriptData.files, t);
+  body.appendParagraph(t.docFunctions).setHeading(DocumentApp.ParagraphHeading.HEADING1);
+
+  return { projectName, files, total: files.length };
+}
+
+function processFileJob(file, settings) {
+  const t = getI18n(settings.locale);
+  const body = DocumentApp.getActiveDocument().getBody();
+  processFile(body, file, settings, t);
+  return { success: true };
+}
+
+function finalizeGeneration(settings) {
+  const body = DocumentApp.getActiveDocument().getBody();
+  body.appendParagraph("[SCRIPTDOC_END]").setAttributes({[DocumentApp.Attribute.FONT_SIZE]: 1});
+  return { success: true };
+}
+
+/**
+ * Finds the range between two markers
+ */
+function findMarkerRange(body, start, end) {
+  const startElement = body.findText(start);
+  const endElement = body.findText(end);
+  if (startElement && endElement) {
+    const startRange = startElement.getElement().getParent();
+    const endRange = endElement.getElement().getParent();
+    // This is a simplified removal. In a real doc, we'd need to iterate between elements.
+    // For now, let's just remove the paragraphs containing the markers and everything in between if possible.
+    // A robust way in GAS is to track indices.
+    const startIdx = body.getChildIndex(startRange);
+    const endIdx = body.getChildIndex(endRange);
+    for (let i = endIdx; i >= startIdx; i--) {
+      body.removeChild(body.getChild(i));
+    }
+  }
+  return null;
+}
+
+/**
+ * Generates a Markdown version of the documentation and saves it to Drive.
+ */
+function exportToMarkdown(scriptId, locale) {
+  const t = getI18n(locale);
+  const scriptData = getScriptContent(scriptId);
   const files = scriptData.files || [];
-
-  // Render Project Structure
-  renderStructure(body, files, t);
-
-  // Render Detailed Logic
-  const logicTitle = (settings.template === 'api') ? t.docApiRef : t.docFunctions;
-  body.appendParagraph(logicTitle).setHeading(DocumentApp.ParagraphHeading.HEADING1);
+  
+  let md = `# ${scriptId}\n\n`;
+  md += `> ${t.docGenerated} ${new Date().toLocaleDateString()}\n\n`;
+  
+  md += `## ${t.docStructure}\n\n\`\`\`\n.\n`;
+  files.forEach((file, index) => {
+    const isLast = index === files.length - 1;
+    const prefix = isLast ? "└── " : "├── ";
+    md += `  ${prefix}${file.name}.${file.type === 'html' ? 'html' : 'gs'}\n`;
+  });
+  md += `\`\`\`\n\n`;
 
   files.forEach(file => {
     if (file.type === 'server_js' || file.type === 'gs') {
-      processFile(body, file, settings, t);
+      const functions = parseFunctions(file.source);
+      if (functions.length > 0) {
+        md += `## ${file.name}\n\n`;
+        functions.forEach(func => {
+          md += `### \`${func.name}()\`\n\n`;
+          if (func.description) md += `${func.description}\n\n`;
+          if (func.params.length > 0) {
+            md += `**Parameters:**\n`;
+            func.params.forEach(p => md += `- \`${p.name}\` (${p.type}): ${p.description}\n`);
+            md += `\n`;
+          }
+          if (func.returns) md += `**Returns:** ${func.returns}\n\n`;
+          md += `---\n\n`;
+        });
+      }
     }
   });
 
-  return { success: true, projectName: projectName };
+  const folder = DriveApp.getFileById(scriptId).getParents().next();
+  const file = folder.createFile(`${scriptId}_doc.md`, md, MimeType.PLAIN_TEXT);
+  return file.getUrl();
 }
 
 /**

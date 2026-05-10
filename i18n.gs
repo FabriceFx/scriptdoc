@@ -22,6 +22,8 @@ const I18N = {
     infoGemini: "Utilise Gemini 3 pour expliquer vos fonctions.",
     btnCancel: "Annuler",
     btnGenerate: "Générer la Documentation",
+    labelOverwrite: "Remplacer la documentation existante",
+    btnMarkdown: "Exporter en Markdown (.md)",
     loading: "Analyse du projet en cours...",
 
     // UI - Results
@@ -66,6 +68,8 @@ const I18N = {
     infoGemini: "Uses Gemini 3 to explain your functions.",
     btnCancel: "Cancel",
     btnGenerate: "Generate Documentation",
+    labelOverwrite: "Replace existing documentation",
+    btnMarkdown: "Export to Markdown (.md)",
     loading: "Analyzing project...",
 
     // UI - Results
