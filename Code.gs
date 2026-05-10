@@ -142,7 +142,7 @@ function generateDocumentation(scriptId, template, geminiKey) {
       structureStr += `  ${prefix}${f.name}.${ext}\n`;
     });
     const structurePara = body.appendParagraph(structureStr);
-    structurePara.setFontFamily('Courier New').setBackgroundColor('#F1F3F4').setIndentStart(20);
+    structurePara.setFontFamily('Roboto Mono').setBackgroundColor('#F1F3F4').setIndentStart(20);
   }
 
   // Section 3: Technical Details
@@ -169,7 +169,10 @@ function generateDocumentation(scriptId, template, geminiKey) {
       if (functions.length > 0) {
         body.appendParagraph(file.name).setHeading(DocumentApp.ParagraphHeading.HEADING3);
         functions.forEach(func => {
-          body.appendParagraph(`${func.name}()`).setHeading(DocumentApp.ParagraphHeading.HEADING4);
+          body.appendParagraph(`${func.name}()`)
+            .setHeading(DocumentApp.ParagraphHeading.HEADING4)
+            .setFontFamily('Roboto Mono')
+            .setForegroundColor('#1a73e8');
           
           let description = func.description || t.docNoDesc;
           
