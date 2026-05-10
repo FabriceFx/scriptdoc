@@ -86,11 +86,20 @@ function getScriptContent(scriptId) {
     muteHttpExceptions: true
   };
   
-  const response = UrlFetchApp.fetch(url, options);
-  if (response.getResponseCode() !== 200) {
-    throw new Error(`API Error ${response.getResponseCode()}: ${response.getContentText()}`);
+  let lastError;
+  for (let i = 0; i < 3; i++) { // 3 attempts
+    try {
+      const response = UrlFetchApp.fetch(url, options);
+      if (response.getResponseCode() === 200) {
+        return JSON.parse(response.getContentText());
+      }
+      lastError = `API Error ${response.getResponseCode()}: ${response.getContentText()}`;
+    } catch (e) {
+      lastError = e.message;
+    }
+    if (i < 2) Utilities.sleep(Math.pow(2, i) * 1000); // Exponential backoff
   }
-  return JSON.parse(response.getContentText());
+  throw new Error(`Failed to fetch script content after 3 attempts: ${lastError}`);
 }
 
 /**
@@ -280,7 +289,8 @@ function parseGeminiResponse(responseText) {
 function parseFunctions(source) {
   const functions = [];
   // Regex covers: function name(), const name = () =>, name: function(), name() { in classes
-  const funcRegex = /(?:\/\*\*([\s\S]*?)\*\/)?\s*(?:function\s+([\w$]+)|(?:const|let|var)\s+([\w$]+)\s*=\s*(?:async\s*)?\([^)]*\)\s*=>|([\w$]+)\s*\([^)]*\)\s*\{)/g;
+  // Also captures JSDoc (/** */) or regular multi-line comments (/* */)
+  const funcRegex = /(?:\/\*\*?([\s\S]*?)\*\/)?\s*(?:(?:async\s+)?function\s+([\w$]+)|(?:const|let|var)\s+([\w$]+)\s*=\s*(?:async\s*)?\([^)]*\)\s*=>|([\w$]+)\s*\([^)]*\)\s*\{)/g;
   
   let match;
   while ((match = funcRegex.exec(source)) !== null) {
