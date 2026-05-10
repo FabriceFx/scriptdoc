@@ -175,12 +175,17 @@ function generateDocumentation(scriptId, template, geminiKey) {
           let description = func.description || t.noDesc;
           
           // AI Retro-documentation
+          console.log(`Checking AI for ${func.name}. Key provided: ${!!geminiKey}, Description present: ${!!func.description}`);
           if (geminiKey && (!func.description || template === 'technical')) {
+            console.log(`Calling Gemini for ${func.name}...`);
             const aiDesc = askGemini(func.name, file.source, geminiKey, isFr);
             if (aiDesc) {
+              console.log(`Gemini returned success for ${func.name}`);
               description = aiDesc;
-              const aiNote = isFr ? '✨ [Analyse par Gemini 3]' : '✨ [Gemini 3 Analysis]';
+              const aiNote = isFr ? '✨ [Analyse par Gemini AI]' : '✨ [Gemini AI Analysis]';
               body.appendParagraph(aiNote).setItalic(true).setFontSize(8).setForegroundColor('#1a73e8');
+            } else {
+              console.warn(`Gemini returned null for ${func.name}`);
             }
           }
           
@@ -201,11 +206,9 @@ function generateDocumentation(scriptId, template, geminiKey) {
  * Calls Gemini AI to explain a function.
  */
 function askGemini(functionName, sourceCode, apiKey, isFr) {
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash:generateContent?key=${apiKey}`;
+  // We try Gemini 1.5 Flash first as it is the most stable and available in 2024-2026.
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
   
-  console.log('--- GEMINI CALL START ---');
-  console.log('Function:', functionName);
-
   const prompt = isFr 
     ? `Tu es un expert Google Apps Script. Analyse le code source suivant et explique précisément le rôle et la logique métier de la fonction "${functionName}". 
        Réponds en 2-3 phrases maximum, de manière technique et concise. Ne réponds qu'avec l'explication.\n\nCode source :\n${sourceCode}`
@@ -218,8 +221,7 @@ function askGemini(functionName, sourceCode, apiKey, isFr) {
     }],
     generationConfig: {
       temperature: 0.2,
-      maxOutputTokens: 250,
-      topP: 0.8
+      maxOutputTokens: 250
     }
   };
 
@@ -232,22 +234,27 @@ function askGemini(functionName, sourceCode, apiKey, isFr) {
 
   try {
     const response = UrlFetchApp.fetch(url, options);
+    const responseText = response.getContentText();
     const responseCode = response.getResponseCode();
-    console.log('Gemini Response Code:', responseCode);
     
-    const json = JSON.parse(response.getContentText());
-    if (json.candidates && json.candidates[0].content.parts[0].text) {
+    if (responseCode !== 200) {
+      console.error('Gemini API Error:', responseText);
+      return `[Erreur Gemini ${responseCode}]`;
+    }
+    
+    const json = JSON.parse(responseText);
+    if (json.candidates && json.candidates[0].content && json.candidates[0].content.parts[0].text) {
       let text = json.candidates[0].content.parts[0].text.trim();
-      console.log('Gemini Text received (length):', text.length);
       text = text.replace(/^(La fonction|Cette fonction|This function) \w+ /i, '');
       return text.charAt(0).toUpperCase() + text.slice(1);
     } else {
-      console.warn('Gemini returned no candidates:', response.getContentText());
+      console.warn('Gemini format error:', responseText);
+      return null;
     }
   } catch (e) {
-    console.error('Gemini Request Error:', e.message);
+    console.error('Gemini Fetch Error:', e.message);
+    return null;
   }
-  return null;
 }
 
 /**
