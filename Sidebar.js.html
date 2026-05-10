@@ -84,8 +84,11 @@
 
   function loadSavedKey() {
     google.script.run
-      .withSuccessHandler(key => { document.getElementById('gemini-key').value = key; })
-      .getSavedGeminiKey();
+      .withSuccessHandler(data => { 
+        if (data.key) document.getElementById('gemini-key').value = data.key;
+        if (data.template) document.getElementById('template-select').value = data.template;
+      })
+      .getSavedSettings();
   }
 
   function initButtons() {

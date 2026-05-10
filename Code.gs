@@ -68,10 +68,14 @@ function saveGeminiKey(key) {
 }
 
 /**
- * Retrieves the saved Gemini API Key.
+ * Retrieves the saved settings.
  */
-function getSavedGeminiKey() {
-  return PropertiesService.getUserProperties().getProperty('GEMINI_API_KEY') || '';
+function getSavedSettings() {
+  const props = PropertiesService.getUserProperties().getProperties();
+  return {
+    key: props['GEMINI_API_KEY'] || '',
+    template: props['LAST_TEMPLATE'] || 'standard'
+  };
 }
 
 function getScriptContent(scriptId) {
@@ -126,7 +130,10 @@ function generateDocumentation(scriptId, template, geminiKey) {
     projectName = fileMetadata.getName();
   } catch (e) {}
   
+  // 0. Metadata & Table of Contents
   body.appendParagraph(projectName).setHeading(DocumentApp.ParagraphHeading.HEADING1);
+  body.appendTableOfContents();
+  body.appendPageBreak();
   
   // Section 1: Overview
   if (template !== 'api') {
@@ -144,7 +151,8 @@ function generateDocumentation(scriptId, template, geminiKey) {
       const ext = f.type === 'SERVER_JS' ? 'gs' : (f.type === 'JSON' ? 'json' : 'html');
       structureStr += `  ${prefix}${f.name}.${ext}\n`;
     });
-    body.appendParagraph(structureStr).setFontFamily('Courier New');
+    const structurePara = body.appendParagraph(structureStr);
+    structurePara.setFontFamily('Courier New').setBackgroundColor('#F1F3F4').setIndentStart(20);
   }
 
   // Section 3: Technical Details
@@ -195,6 +203,12 @@ function generateDocumentation(scriptId, template, geminiKey) {
     }
   });
 
+  // Save template & key for next time
+  PropertiesService.getUserProperties().setProperties({
+    'GEMINI_API_KEY': geminiKey || '',
+    'LAST_TEMPLATE': template
+  });
+
   return {
     success: true,
     projectName: projectName,
@@ -206,18 +220,18 @@ function generateDocumentation(scriptId, template, geminiKey) {
  * Calls Gemini AI to explain a function.
  */
 function askGemini(functionName, sourceCode, apiKey, isFr) {
-  // Using Gemini 3 Flash as requested (Gemini 1.5 is deprecated in 2026).
   const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash:generateContent?key=${apiKey}`;
   
-  const prompt = isFr 
-    ? `Tu es un expert Google Apps Script. Analyse le code source suivant et explique précisément le rôle et la logique métier de la fonction "${functionName}". 
-       Réponds en 2-3 phrases maximum, de manière technique et concise. Ne réponds qu'avec l'explication.\n\nCode source :\n${sourceCode}`
-    : `You are a Google Apps Script expert. Analyze the following source code and explain precisely the role and business logic of the function "${functionName}". 
-       Reply in 2-3 sentences maximum, in a technical and concise manner. Reply only with the explanation.\n\nSource code:\n${sourceCode}`;
+  const systemInstruction = isFr 
+    ? "Tu es un expert Google Apps Script. Analyse le code fourni et explique la logique métier de la fonction demandée de manière technique et concise (2 phrases max)."
+    : "You are a Google Apps Script expert. Analyze the provided code and explain the business logic of the requested function in a technical and concise manner (2 sentences max).";
 
   const payload = {
+    system_instruction: {
+      parts: [{ text: systemInstruction }]
+    },
     contents: [{
-      parts: [{ text: prompt }]
+      parts: [{ text: `Explique la fonction: ${functionName}\n\nCode:\n${sourceCode}` }]
     }],
     generationConfig: {
       temperature: 0.2,
@@ -264,22 +278,28 @@ function askGemini(functionName, sourceCode, apiKey, isFr) {
  */
 function parseFunctions(source) {
   const functions = [];
-  const regex = /\/\*\*([\s\S]*?)\*\/[\s\n]*function\s+(\w+)\s*\(/g;
+  
+  // 1. Detect JSDoc blocks + functions (classic & arrow)
+  const jsDocRegex = /\/\*\*([\s\S]*?)\*\/[\s\n]*(?:function\s+(\w+)|(?:const|let|var)\s+(\w+)\s*=\s*(?:function|\([^)]*\)\s*=>))/g;
   let match;
   
-  while ((match = regex.exec(source)) !== null) {
-    functions.push({
-      name: match[2],
-      description: match[1].replace(/\*/g, '').trim()
-    });
+  while ((match = jsDocRegex.exec(source)) !== null) {
+    const name = match[2] || match[3];
+    if (name) {
+      functions.push({
+        name: name,
+        description: match[1].replace(/\*/g, '').trim()
+      });
+    }
   }
   
-  // Also catch functions without JSDoc
-  const simpleRegex = /function\s+(\w+)\s*\(/g;
+  // 2. Also catch functions without JSDoc (classic & arrow)
+  const simpleRegex = /(?:function\s+(\w+)|(?:const|let|var)\s+(\w+)\s*=\s*(?:function|\([^)]*\)\s*=>))/g;
   while ((match = simpleRegex.exec(source)) !== null) {
-    if (!functions.find(f => f.name === match[1])) {
+    const name = match[1] || match[2];
+    if (name && !functions.find(f => f.name === name)) {
       functions.push({
-        name: match[1],
+        name: name,
         description: ''
       });
     }
