@@ -206,8 +206,8 @@ function generateDocumentation(scriptId, template, geminiKey) {
  * Calls Gemini AI to explain a function.
  */
 function askGemini(functionName, sourceCode, apiKey, isFr) {
-  // We try Gemini 1.5 Flash first as it is the most stable and available in 2024-2026.
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+  // Using Gemini 3 Flash as requested (Gemini 1.5 is deprecated in 2026).
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash:generateContent?key=${apiKey}`;
   
   const prompt = isFr 
     ? `Tu es un expert Google Apps Script. Analyse le code source suivant et explique précisément le rôle et la logique métier de la fonction "${functionName}". 
@@ -221,7 +221,7 @@ function askGemini(functionName, sourceCode, apiKey, isFr) {
     }],
     generationConfig: {
       temperature: 0.2,
-      maxOutputTokens: 250
+      maxOutputTokens: 300
     }
   };
 
@@ -238,8 +238,8 @@ function askGemini(functionName, sourceCode, apiKey, isFr) {
     const responseCode = response.getResponseCode();
     
     if (responseCode !== 200) {
-      console.error('Gemini API Error:', responseText);
-      return `[Erreur Gemini ${responseCode}]`;
+      console.error(`Gemini 3 API Error (${responseCode}):`, responseText);
+      return `[IA Error ${responseCode}]`;
     }
     
     const json = JSON.parse(responseText);
@@ -248,12 +248,12 @@ function askGemini(functionName, sourceCode, apiKey, isFr) {
       text = text.replace(/^(La fonction|Cette fonction|This function) \w+ /i, '');
       return text.charAt(0).toUpperCase() + text.slice(1);
     } else {
-      console.warn('Gemini format error:', responseText);
-      return null;
+      console.warn('Gemini 3 format error:', responseText);
+      return '[IA Format Error]';
     }
   } catch (e) {
-    console.error('Gemini Fetch Error:', e.message);
-    return null;
+    console.error('Gemini 3 Fetch Error:', e.message);
+    return `[IA Fetch Error: ${e.message}]`;
   }
 }
 
