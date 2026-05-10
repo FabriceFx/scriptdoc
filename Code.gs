@@ -148,18 +148,21 @@ function finalizeGeneration(settings) {
  * Finds the range between two markers
  */
 function findMarkerRange(body, start, end) {
-  const startElement = body.findText(start);
-  const endElement = body.findText(end);
+  // Escape markers for regex findText
+  const startPattern = start.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const endPattern = end.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  
+  const startElement = body.findText(startPattern);
+  const endElement = body.findText(endPattern);
   if (startElement && endElement) {
     const startRange = startElement.getElement().getParent();
     const endRange = endElement.getElement().getParent();
-    // This is a simplified removal. In a real doc, we'd need to iterate between elements.
-    // For now, let's just remove the paragraphs containing the markers and everything in between if possible.
-    // A robust way in GAS is to track indices.
     const startIdx = body.getChildIndex(startRange);
     const endIdx = body.getChildIndex(endRange);
-    for (let i = endIdx; i >= startIdx; i--) {
-      body.removeChild(body.getChild(i));
+    if (startIdx !== -1 && endIdx !== -1 && endIdx >= startIdx) {
+      for (let i = endIdx; i >= startIdx; i--) {
+        body.removeChild(body.getChild(i));
+      }
     }
   }
   return null;
