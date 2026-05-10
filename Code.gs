@@ -111,7 +111,7 @@ function startGeneration(settings) {
   const body = DocumentApp.getActiveDocument().getBody();
   saveSettings(settings);
 
-  const projectName = getProjectName(settings.scriptId, t);
+  const projectName = settings.projectName || "Project";
   
   if (settings.overwrite) {
     const startMarker = "[SCRIPTDOC_START]";
@@ -204,9 +204,14 @@ function exportToMarkdown(scriptId, locale) {
     }
   });
 
-  // Get parent folder using Advanced Service
-  const fileMeta = Drive.Files.get(scriptId, {fields: 'parents'});
-  const parentId = fileMeta.parents ? fileMeta.parents[0] : 'root';
+  // Get parent folder or fallback to root
+  let parentId = 'root';
+  try {
+    const fileMeta = Drive.Files.get(scriptId, {fields: 'parents'});
+    if (fileMeta.parents && fileMeta.parents.length > 0) parentId = fileMeta.parents[0];
+  } catch (e) {
+    console.warn("Could not find parent folder, using root.");
+  }
   
   const file = DriveApp.getFolderById(parentId).createFile(`${scriptId}_doc.md`, md, MimeType.PLAIN_TEXT);
   return file.getUrl();
@@ -219,20 +224,6 @@ function saveSettings(settings) {
   const userProps = PropertiesService.getUserProperties();
   if (settings.geminiKey) userProps.setProperty('GEMINI_API_KEY', settings.geminiKey);
   if (settings.template) userProps.setProperty('LAST_TEMPLATE', settings.template);
-}
-
-/**
- * Safely retrieves project name from Drive
- */
-function getProjectName(scriptId, t) {
-  try {
-    // Using Advanced Drive Service (v3) for better compatibility with script files
-    const fileMetadata = Drive.Files.get(scriptId);
-    return fileMetadata.name;
-  } catch (e) {
-    console.error("Drive Error:", e.message);
-    throw new Error(t.errDrive);
-  }
 }
 
 /**
