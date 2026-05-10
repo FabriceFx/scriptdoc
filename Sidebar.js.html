@@ -78,8 +78,15 @@
   document.addEventListener('DOMContentLoaded', function () {
     updateUI();
     initButtons();
+    loadSavedKey();
     gapi.load('picker', { 'callback': () => { pickerApiLoaded = true; } });
   });
+
+  function loadSavedKey() {
+    google.script.run
+      .withSuccessHandler(key => { document.getElementById('gemini-key').value = key; })
+      .getSavedGeminiKey();
+  }
 
   function initButtons() {
     document.getElementById('pick-script-btn').addEventListener('click', showPicker);
@@ -136,6 +143,10 @@
     const template = document.getElementById('template-select').value;
     const geminiKey = document.getElementById('gemini-key').value;
     const overlay = document.getElementById('loading-overlay');
+    
+    // Save key for next time
+    google.script.run.saveGeminiKey(geminiKey);
+    
     overlay.classList.remove('hidden');
 
     google.script.run

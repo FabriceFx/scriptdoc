@@ -60,6 +60,20 @@ function getOAuthToken() {
   return ScriptApp.getOAuthToken();
 }
 
+/**
+ * Persists the Gemini API Key.
+ */
+function saveGeminiKey(key) {
+  PropertiesService.getUserProperties().setProperty('GEMINI_API_KEY', key);
+}
+
+/**
+ * Retrieves the saved Gemini API Key.
+ */
+function getSavedGeminiKey() {
+  return PropertiesService.getUserProperties().getProperty('GEMINI_API_KEY') || '';
+}
+
 function getScriptContent(scriptId) {
   const url = `https://script.googleapis.com/v1/projects/${scriptId}/content`;
   const options = {
@@ -189,6 +203,9 @@ function generateDocumentation(scriptId, template, geminiKey) {
 function askGemini(functionName, sourceCode, apiKey, isFr) {
   const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash:generateContent?key=${apiKey}`;
   
+  console.log('--- GEMINI CALL START ---');
+  console.log('Function:', functionName);
+
   const prompt = isFr 
     ? `Tu es un expert Google Apps Script. Analyse le code source suivant et explique précisément le rôle et la logique métier de la fonction "${functionName}". 
        Réponds en 2-3 phrases maximum, de manière technique et concise. Ne réponds qu'avec l'explication.\n\nCode source :\n${sourceCode}`
@@ -215,15 +232,20 @@ function askGemini(functionName, sourceCode, apiKey, isFr) {
 
   try {
     const response = UrlFetchApp.fetch(url, options);
+    const responseCode = response.getResponseCode();
+    console.log('Gemini Response Code:', responseCode);
+    
     const json = JSON.parse(response.getContentText());
     if (json.candidates && json.candidates[0].content.parts[0].text) {
       let text = json.candidates[0].content.parts[0].text.trim();
-      // Remove generic AI prefixes if any
+      console.log('Gemini Text received (length):', text.length);
       text = text.replace(/^(La fonction|Cette fonction|This function) \w+ /i, '');
       return text.charAt(0).toUpperCase() + text.slice(1);
+    } else {
+      console.warn('Gemini returned no candidates:', response.getContentText());
     }
   } catch (e) {
-    console.error('Gemini Error:', e.message);
+    console.error('Gemini Request Error:', e.message);
   }
   return null;
 }
