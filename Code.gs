@@ -205,19 +205,18 @@ function generateDocumentation(scriptId, template, geminiKey) {
  * Calls Gemini AI to explain a function.
  */
 function askGemini(functionName, sourceCode, apiKey, isFr) {
-  // We prioritize gemini-3-flash as requested by the user.
-  // Using the merged prompt structure which was successful with 2.0.
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash:generateContent?key=${apiKey}`;
+  const models = ['gemini-3-flash', 'gemini-2.0-flash'];
   
   const systemInstruction = isFr 
     ? "Tu es un expert Google Apps Script. Analyse le code fourni et explique la logique métier de la fonction demandée de manière technique et concise (2 phrases max)."
     : "You are a Google Apps Script expert. Analyze the provided code and explain the business logic of the requested function in a technical and concise manner (2 sentences max).";
 
-  const fullPrompt = `${systemInstruction}\n\nExplique la fonction : ${functionName}\n\nCode :\n${sourceCode}`;
-
   const payload = {
+    system_instruction: {
+      parts: [{ text: systemInstruction }]
+    },
     contents: [{
-      parts: [{ text: fullPrompt }]
+      parts: [{ text: `Explique la fonction : ${functionName}\n\nCode :\n${sourceCode}` }]
     }],
     generationConfig: {
       temperature: 0.2,
@@ -232,31 +231,24 @@ function askGemini(functionName, sourceCode, apiKey, isFr) {
     muteHttpExceptions: true
   };
 
-  try {
-    const response = UrlFetchApp.fetch(url, options);
-    const responseText = response.getContentText();
-    const responseCode = response.getResponseCode();
-    
-    // Fallback to 2.0 if 3-flash returns 404 (model not found)
-    if (responseCode === 404) {
-      console.warn('Gemini 3 not found, falling back to 2.0...');
-      const fallbackUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
-      const fallbackResponse = UrlFetchApp.fetch(fallbackUrl, options);
-      if (fallbackResponse.getResponseCode() === 200) {
-        return parseGeminiResponse(fallbackResponse.getContentText());
+  for (const model of models) {
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+    try {
+      const response = UrlFetchApp.fetch(url, options);
+      const responseCode = response.getResponseCode();
+      
+      if (responseCode === 200) {
+        return parseGeminiResponse(response.getContentText());
+      } else if (responseCode !== 404) {
+        // Stop if error is not 404 (e.g. 401, 429)
+        return `[IA Error ${responseCode}]`;
       }
+    } catch (e) {
+      console.error(`Gemini ${model} Fetch Error:`, e.message);
     }
-
-    if (responseCode === 200) {
-      return parseGeminiResponse(responseText);
-    }
-    
-    console.error(`Gemini Error (${responseCode}):`, responseText);
-    return `[IA Error ${responseCode}]`;
-  } catch (e) {
-    console.error('Gemini Fetch Error:', e.message);
-    return `[IA Fetch Error]`;
   }
+  
+  return "[IA Error]";
 }
 
 /**
