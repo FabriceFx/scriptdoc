@@ -119,14 +119,14 @@ function startGeneration(settings) {
     findMarkerRange(body, startMarker, endMarker);
   }
 
-  body.appendParagraph("[SCRIPTDOC_START]").setAttributes({[DocumentApp.Attribute.FONT_SIZE]: 1});
+  safeAppend(body, "[SCRIPTDOC_START]").setAttributes({[DocumentApp.Attribute.FONT_SIZE]: 1});
   renderHeader(body, projectName, t, settings.scriptId);
 
   const scriptData = getScriptContent(settings.scriptId);
   const files = scriptData.files.filter(f => f.type === 'SERVER_JS' || f.type === 'gs');
 
   renderStructure(body, scriptData.files, t);
-  body.appendParagraph(t.docFunctions).setHeading(DocumentApp.ParagraphHeading.HEADING1);
+  safeAppend(body, t.docFunctions || "Functions").setHeading(DocumentApp.ParagraphHeading.HEADING1);
 
   return { projectName, files, total: files.length };
 }
@@ -140,7 +140,7 @@ function processFileJob(file, settings) {
 
 function finalizeGeneration(settings) {
   const body = DocumentApp.getActiveDocument().getBody();
-  body.appendParagraph("[SCRIPTDOC_END]").setAttributes({[DocumentApp.Attribute.FONT_SIZE]: 1});
+  safeAppend(body, "[SCRIPTDOC_END]").setAttributes({[DocumentApp.Attribute.FONT_SIZE]: 1});
   return { success: true };
 }
 
@@ -236,21 +236,21 @@ function saveSettings(settings) {
  * Renders the document header
  */
 function renderHeader(body, projectName, t, scriptId) {
-  body.appendParagraph(projectName).setHeading(DocumentApp.ParagraphHeading.TITLE);
-  body.appendParagraph(`${t.docGenerated} ${new Date().toLocaleDateString()}`).setItalic(true);
+  safeAppend(body, projectName || "Project").setHeading(DocumentApp.ParagraphHeading.TITLE);
+  safeAppend(body, `${t.docGenerated || "Generated on"} ${new Date().toLocaleDateString()}`).setItalic(true);
   
-  const tocNote = body.appendParagraph(t.tocNote);
+  const tocNote = safeAppend(body, t.tocNote || "Tip: add a TOC.");
   tocNote.setItalic(true).setForegroundColor('#666666');
   
-  body.appendParagraph(t.docOverview).setHeading(DocumentApp.ParagraphHeading.HEADING1);
-  body.appendParagraph(`${t.docProjId}: ${scriptId}`);
+  safeAppend(body, t.docOverview || "Overview").setHeading(DocumentApp.ParagraphHeading.HEADING1);
+  safeAppend(body, `${t.docProjId || "ID"}: ${scriptId || "Unknown"}`);
 }
 
 /**
  * Renders the file structure diagram
  */
 function renderStructure(body, files, t) {
-  body.appendParagraph(t.docStructure).setHeading(DocumentApp.ParagraphHeading.HEADING1);
+  safeAppend(body, t.docStructure || "Structure").setHeading(DocumentApp.ParagraphHeading.HEADING1);
   let structureStr = ".\n";
   files.forEach((file, index) => {
     const isLast = index === files.length - 1;
@@ -258,7 +258,7 @@ function renderStructure(body, files, t) {
     const ext = (file.type === 'HTML' || file.type === 'html') ? 'html' : 'gs';
     structureStr += `  ${prefix}${file.name}.${ext}\n`;
   });
-  body.appendParagraph(structureStr)
+  safeAppend(body, structureStr)
     .setFontFamily('Roboto Mono')
     .setBackgroundColor('#F1F3F4')
     .setIndentStart(20);
@@ -278,9 +278,9 @@ function processFile(body, file, settings, t) {
     aiData = askGeminiBatch(file.name, functions, file.source, settings.geminiKey, settings.locale.startsWith('fr'));
     
     if (aiData.overview && aiData.overview.trim() !== "") {
-      const overviewPara = body.appendParagraph(aiData.overview.trim());
+      const overviewPara = safeAppend(body, aiData.overview.trim());
       overviewPara.setItalic(true).setForegroundColor('#5f6368');
-      body.appendParagraph(" "); // Space instead of empty string
+      safeAppend(body, " "); 
     }
   }
 
@@ -292,9 +292,17 @@ function processFile(body, file, settings, t) {
 /**
  * Renders documentation for a single function
  */
+/**
+ * Safely appends a paragraph with a fallback if text is empty
+ */
+function safeAppend(body, text, fallback = " ") {
+  const content = (text && text.toString().trim() !== "") ? text : fallback;
+  return body.appendParagraph(content);
+}
+
 function renderFunction(body, func, aiExpl, settings, t) {
   const funcName = func.name || "Unknown";
-  const funcPara = body.appendParagraph(`${funcName}()`);
+  const funcPara = safeAppend(body, `${funcName}()`);
   funcPara.setHeading(DocumentApp.ParagraphHeading.HEADING3)
           .setFontFamily('Roboto Mono')
           .setForegroundColor('#1a73e8');
@@ -313,9 +321,9 @@ function renderFunction(body, func, aiExpl, settings, t) {
   }
 
   if (docText && docText.trim() !== "") {
-    body.appendParagraph(docText.trim());
+    safeAppend(body, docText.trim());
   } else {
-    body.appendParagraph(t.docNoDesc || "No description available.").setItalic(true);
+    safeAppend(body, t.docNoDesc || "No description available.").setItalic(true);
   }
 }
 
