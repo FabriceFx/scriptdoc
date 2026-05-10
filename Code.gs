@@ -173,7 +173,7 @@ function findMarkerRange(body, start, end) {
       if (isLastParagraph || body.getNumChildren() === 1) {
         // If it's the last one, we just clear its content instead of removing it
         if (child.getType() === DocumentApp.ElementType.PARAGRAPH) {
-          child.asParagraph().setText("");
+          child.asParagraph().setText(" "); // Use a space instead of truly empty
         }
       } else {
         body.removeChild(child);
