@@ -172,10 +172,20 @@
     btn.textContent = 'Exporting...';
     
     google.script.run
-      .withSuccessHandler(url => {
+      .withSuccessHandler(md => {
         btn.textContent = TRANSLATIONS.btnMarkdown;
         btn.disabled = false;
-        window.open(url, '_blank');
+        
+        // Client-side download
+        const blob = new Blob([md], { type: 'text/markdown' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = (selectedScriptName || 'script') + '_doc.md';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
       })
       .withFailureHandler(err => {
         btn.textContent = TRANSLATIONS.btnMarkdown;

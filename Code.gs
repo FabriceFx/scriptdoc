@@ -201,17 +201,7 @@ function exportToMarkdown(scriptId, locale) {
     });
   });
 
-  let folder = DriveApp.getRootFolder();
-  try {
-    const file = DriveApp.getFileById(scriptId);
-    const parents = file.getParents();
-    if (parents.hasNext()) folder = parents.next();
-  } catch (e) {
-    console.warn("Using root folder fallback.");
-  }
-  
-  const file = folder.createFile(`${scriptId}_doc.md`, md, MimeType.PLAIN_TEXT);
-  return file.getUrl();
+  return md;
 }
 
 /**
