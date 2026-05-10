@@ -148,22 +148,30 @@ function finalizeGeneration(settings) {
  * Finds the range between two markers
  */
 function findMarkerRange(body, start, end) {
-  // Escape markers for regex findText
-  const startPattern = start.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  const endPattern = end.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  
-  const startElement = body.findText(startPattern);
-  const endElement = body.findText(endPattern);
-  if (startElement && endElement) {
-    const startRange = startElement.getElement().getParent();
-    const endRange = endElement.getElement().getParent();
-    const startIdx = body.getChildIndex(startRange);
-    const endIdx = body.getChildIndex(endRange);
-    if (startIdx !== -1 && endIdx !== -1 && endIdx >= startIdx) {
-      for (let i = endIdx; i >= startIdx; i--) {
+  let startIdx = -1;
+  let endIdx = -1;
+  const numChildren = body.getNumChildren();
+
+  for (let i = 0; i < numChildren; i++) {
+    const child = body.getChild(i);
+    if (child.getType() === DocumentApp.ElementType.PARAGRAPH) {
+      const text = child.asParagraph().getText();
+      if (text.includes(start)) startIdx = i;
+      if (text.includes(end)) endIdx = i;
+    }
+  }
+
+  if (startIdx !== -1 && endIdx !== -1 && endIdx >= startIdx) {
+    // Remove from end to start to maintain indices
+    for (let i = endIdx; i >= startIdx; i--) {
+      // Never remove the very last paragraph if it's the only one left
+      if (body.getNumChildren() > 1) {
         body.removeChild(body.getChild(i));
+      } else {
+        body.getChild(0).asParagraph().setText("");
       }
     }
+    return startIdx;
   }
   return null;
 }
