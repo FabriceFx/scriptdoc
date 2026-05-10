@@ -21,7 +21,7 @@ function onInstall(e) {
 }
 
 /**
- * Homepage Trigger for Workspace Add-on.
+ * Homepage Trigger for Workspace Add-on (Side Panel).
  */
 function onHomepage(e) {
   const card = CardService.newCardBuilder()

@@ -1,97 +1,115 @@
 <!DOCTYPE html>
 <html>
-  <head>
-    <base target="_top">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
-    <?!= include('Sidebar.css'); ?>
-    <script>
-      const USER_LOCALE = '<?= locale ?>';
-    </script>
-  </head>
-  <body>
-    <div id="app">
-      <!-- Step 1 & 2: Configuration -->
-      <div id="config-step" class="step active">
-        <header>
-          <h1 data-i18n="title">ScriptDoc</h1>
-          <p class="subtitle" data-i18n="subtitle">Génération de documentation</p>
-        </header>
+<head>
+  <base target="_top">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <?!= include('Sidebar.css'); ?>
+  <script>
+    const USER_LOCALE = '<?= locale ?>';
+  </script>
+</head>
+<body>
+  <div id="app">
+    <!-- Step 1 & 2: Configuration -->
+    <div id="config-step" class="step active">
+      <header>
+        <h1 data-i18n="title">Nouvelle Documentation</h1>
+        <p class="subtitle" data-i18n="subtitle">Configuration & Sélection</p>
+      </header>
 
-        <section>
-          <!-- Unified Config -->
-          <div class="mb-4">
-            <label class="block text-xs font-bold text-gray-500 uppercase mb-2" data-i18n="labelTemplate"></label>
-            <select id="template-select" class="w-full bg-gray-50 border border-gray-200 rounded-lg p-2 text-sm outline-none focus:ring-2 focus:ring-blue-500">
-              <option value="standard" data-i18n="optStandard">Documentation Standard</option>
-              <option value="technical" data-i18n="optTechnical">Analyse Technique</option>
-              <option value="api" data-i18n="optApi">Référence API</option>
-            </select>
-          </div>
-
-          <div class="mb-4">
-            <label class="block text-xs font-bold text-gray-500 uppercase mb-2" data-i18n="step2"></label>
-            <button id="pick-script-btn" class="secondary-btn" style="width: 100%; margin-left: 0;">
-              <i class="fa-solid fa-file-code"></i>
-              <span data-i18n="btnPick"></span>
-            </button>
-            <p id="selected-file-name" class="file-info" style="margin-left: 0; text-align: center; font-weight: 600; color: var(--primary-color);" data-i18n="noFile"></p>
-          </div>
-
-          <div class="mb-4" style="border-top: 1px solid #eee; pt-4; mt-4; padding-top: 16px;">
-            <label class="block text-xs font-bold text-gray-500 uppercase mb-2" data-i18n="labelGemini"></label>
-            <div style="display: flex; gap: 8px; align-items: center;">
-              <input type="password" id="gemini-key" style="flex-grow: 1; padding: 10px; border: 1px solid var(--border-color); border-radius: 4px; font-size: 13px; outline: none;" placeholder="AIza...">
-              <button id="test-key-btn" class="test-btn">Test</button>
-            </div>
-            <p class="field-info" data-i18n="infoGemini" style="margin-top: 8px; font-style: italic; color: #70757a; font-size: 11px;"></p>
-          </div>
-        </section>
-
-        <footer>
-          <button id="cancel-btn" class="text-btn" data-i18n="btnCancel">← Cancel</button>
-          <button id="generate-btn" class="primary-btn" disabled>
-            <span data-i18n="btnGenerate">Generate Documentation</span>
-            <span class="arrow">→</span>
-          </button>
-        </footer>
-      </div>
-
-      <!-- Success Step -->
-      <div id="success-step" class="step">
-        <div class="success-content">
-          <div class="success-icon">
-            <svg viewBox="0 0 24 24" width="48" height="48">
-              <circle cx="12" cy="12" r="10" fill="#4CAF50"/>
-              <path d="M9 11l3 3 5-5" stroke="white" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
-            </svg>
-          </div>
-          <h2 data-i18n="resTitle">Documentation Generated!</h2>
-          <p data-i18n="resSubtitle">Your documentation has been created and inserted into the current document.</p>
-          
-          <div class="summary-card">
-            <div class="summary-item">
-              <span class="label" data-i18n="resProject">Project:</span>
-              <span id="res-project-name" class="value">-</span>
-            </div>
-            <div class="summary-item">
-              <span class="label" data-i18n="resTemplate">Template:</span>
-              <span id="res-template" class="value">-</span>
-            </div>
-          </div>
-
-          <button id="close-btn" class="primary-btn" data-i18n="btnClose">Close</button>
+      <section>
+        <!-- Step 1: Template -->
+        <div class="step-indicator">
+          <span class="number">1</span>
+          <span class="label" data-i18n="step1">Choose a template</span>
         </div>
-      </div>
+        <div class="field">
+          <label for="template-select" data-i18n="labelTemplate">Template</label>
+          <select id="template-select">
+            <option value="standard" data-i18n="optStandard">Documentation Standard</option>
+            <option value="technical" data-i18n="optTechnical">Analyse Technique</option>
+            <option value="api" data-i18n="optApi">Référence API</option>
+          </select>
+          <p class="field-info" data-i18n="infoTemplate">Balanced coverage of all aspects</p>
+        </div>
+      </section>
 
-      <!-- Loading Overlay -->
-      <div id="loading-overlay" class="overlay hidden">
-        <div class="spinner"></div>
-        <p data-i18n="loading">Analyzing project...</p>
+      <section>
+        <!-- Step 2: Script -->
+        <div class="step-indicator">
+          <span class="number">2</span>
+          <span class="label" data-i18n="step2">Select a script project</span>
+        </div>
+        <button id="pick-script-btn" class="secondary-btn">
+          <img src="https://www.gstatic.com/images/branding/product/1x/drive_24dp.png" width="18" height="18" alt="Drive">
+          <span data-i18n="btnPick">Pick Script from Drive</span>
+        </button>
+        <div id="selected-file-info" class="file-info hidden">
+          <span id="file-name" data-i18n="noFile">No file selected</span>
+        </div>
+      </section>
+
+      <!-- Step 3: AI Enhancement -->
+      <section>
+        <div class="step-indicator">
+          <span class="number">3</span>
+          <span class="label" data-i18n="stepAI">AI Enhancement (Optional)</span>
+        </div>
+        <div class="field">
+          <label for="gemini-key" data-i18n="labelGemini">Gemini API Key</label>
+          <div style="display: flex; gap: 8px;">
+            <input type="password" id="gemini-key" style="flex: 1; padding: 10px; border: 1px solid var(--border-color); border-radius: 4px;" placeholder="AIza...">
+            <button id="test-key-btn" class="test-btn">Test</button>
+          </div>
+          <p class="field-info" data-i18n="infoGemini">Uses Gemini to generate detailed descriptions for your functions.</p>
+        </div>
+      </section>
+
+      <footer>
+        <button id="cancel-btn" class="text-btn" data-i18n="btnCancel">Cancel</button>
+        <button id="generate-btn" class="primary-btn" disabled>
+          <span data-i18n="btnGenerate">Generate Documentation</span>
+          <span class="arrow">→</span>
+        </button>
+      </footer>
+    </div>
+
+    <!-- Success Step -->
+    <div id="success-step" class="step">
+      <div class="success-content">
+        <div class="success-icon">
+          <svg viewBox="0 0 24 24" width="48" height="48">
+            <circle cx="12" cy="12" r="10" fill="#4CAF50"/>
+            <path d="M9 11l3 3 5-5" stroke="white" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </div>
+        <h2 data-i18n="resTitle">Documentation Generated!</h2>
+        <p data-i18n="resSubtitle">Your documentation has been created and inserted into the current document.</p>
+        
+        <div class="summary-card">
+          <div class="summary-item">
+            <span class="label" data-i18n="resProject">Project:</span>
+            <span id="res-project-name" class="value">-</span>
+          </div>
+          <div class="summary-item">
+            <span class="label" data-i18n="resTemplate">Template:</span>
+            <span id="res-template" class="value">-</span>
+          </div>
+        </div>
+
+        <button id="close-btn" class="primary-btn" data-i18n="btnClose">Close</button>
       </div>
     </div>
 
-    <!-- Google Picker API -->
-    <script src="https://apis.google.com/js/api.js"></script>
-    <?!= include('Sidebar.js'); ?>
-  </body>
+    <!-- Loading Overlay -->
+    <div id="loading-overlay" class="overlay hidden">
+      <div class="spinner"></div>
+      <p data-i18n="loading">Analyzing project...</p>
+    </div>
+  </div>
+
+  <!-- Google Picker API -->
+  <script src="https://apis.google.com/js/api.js"></script>
+  <?!= include('Sidebar.js'); ?>
+</body>
 </html>
