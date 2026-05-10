@@ -7,7 +7,7 @@ const I18N = {
   fr: {
     // UI - Sidebar
     title: "Nouvelle Documentation",
-    subtitle: "Configuration & Sélection",
+    subtitle: "Configuration & sélection",
     step1: "1. Choisir un modèle",
     labelTemplate: "Modèle",
     optStandard: "Documentation Standard",
@@ -21,7 +21,7 @@ const I18N = {
     labelGemini: "Clé API Gemini",
     infoGemini: "Utilise Gemini 3 pour expliquer vos fonctions.",
     btnCancel: "Annuler",
-    btnGenerate: "Générer la Documentation",
+    btnGenerate: "Générer la documentation",
     labelOverwrite: "Remplacer la documentation existante",
     btnMarkdown: "Exporter en Markdown (.md)",
     loading: "Analyse du projet en cours...",

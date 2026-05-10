@@ -157,6 +157,10 @@
       .withSuccessHandler(() => {
         processFiles(files, index + 1, settings, projectName);
       })
+      .withFailureHandler(err => {
+        setLoading(false);
+        showToast('Erreur Fichier : ' + err.message, 'error');
+      })
       .processFileJob(file, settings);
   }
 
@@ -180,6 +184,17 @@
     toast.className = 'toast ' + type;
     toast.classList.remove('hidden');
     setTimeout(() => toast.classList.add('hidden'), 5000);
+  }
+
+  function setLoading(active) {
+    const overlay = document.getElementById('loading-overlay');
+    if (active) overlay.classList.remove('hidden');
+    else overlay.classList.add('hidden');
+  }
+
+  function showStep(stepName) {
+    document.querySelectorAll('.step').forEach(s => s.classList.remove('active'));
+    document.getElementById(stepName + '-step').classList.add('active');
   }
 
   function onGenerationSuccess(result) {
