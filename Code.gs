@@ -165,11 +165,12 @@ function generateDocumentation(scriptId, template, geminiKey) {
             const aiDesc = askGemini(func.name, file.source, geminiKey, isFr);
             if (aiDesc) {
               description = aiDesc;
-              if (isFr) body.appendParagraph(t.aiGenerated).setItalic(true).setFontSize(9);
+              const aiNote = isFr ? '✨ [Analyse par Gemini 3]' : '✨ [Gemini 3 Analysis]';
+              body.appendParagraph(aiNote).setItalic(true).setFontSize(8).setForegroundColor('#1a73e8');
             }
           }
           
-          body.appendParagraph(description);
+          body.appendParagraph(description).setItalic(false).setForegroundColor('#000000');
         });
       }
     }
@@ -189,16 +190,19 @@ function askGemini(functionName, sourceCode, apiKey, isFr) {
   const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash:generateContent?key=${apiKey}`;
   
   const prompt = isFr 
-    ? `Explique ce que fait la fonction Google Apps Script nommée "${functionName}" en 2 phrases maximum. Voici le code source :\n\n${sourceCode}`
-    : `Explain what the Google Apps Script function named "${functionName}" does in 2 sentences maximum. Here is the source code:\n\n${sourceCode}`;
+    ? `Tu es un expert Google Apps Script. Analyse le code source suivant et explique précisément le rôle et la logique métier de la fonction "${functionName}". 
+       Réponds en 2-3 phrases maximum, de manière technique et concise. Ne réponds qu'avec l'explication.\n\nCode source :\n${sourceCode}`
+    : `You are a Google Apps Script expert. Analyze the following source code and explain precisely the role and business logic of the function "${functionName}". 
+       Reply in 2-3 sentences maximum, in a technical and concise manner. Reply only with the explanation.\n\nSource code:\n${sourceCode}`;
 
   const payload = {
     contents: [{
       parts: [{ text: prompt }]
     }],
     generationConfig: {
-      temperature: 0.1,
-      maxOutputTokens: 150
+      temperature: 0.2,
+      maxOutputTokens: 250,
+      topP: 0.8
     }
   };
 
@@ -213,7 +217,10 @@ function askGemini(functionName, sourceCode, apiKey, isFr) {
     const response = UrlFetchApp.fetch(url, options);
     const json = JSON.parse(response.getContentText());
     if (json.candidates && json.candidates[0].content.parts[0].text) {
-      return json.candidates[0].content.parts[0].text.trim();
+      let text = json.candidates[0].content.parts[0].text.trim();
+      // Remove generic AI prefixes if any
+      text = text.replace(/^(La fonction|Cette fonction|This function) \w+ /i, '');
+      return text.charAt(0).toUpperCase() + text.slice(1);
     }
   } catch (e) {
     console.error('Gemini Error:', e.message);
