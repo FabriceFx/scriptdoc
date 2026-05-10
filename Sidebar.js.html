@@ -1,0 +1,160 @@
+<script>
+  /**
+   * I18N SUPPORT
+   */
+  const translations = {
+    fr: {
+      title: "Nouvelle documentation",
+      subtitle: "Configurer & sélectionner",
+      step1: "Choisir un modèle",
+      labelTemplate: "Modèle",
+      optStandard: "Documentation Standard",
+      optTechnical: "Analyse Technique",
+      optApi: "Référence API",
+      infoTemplate: "Couverture équilibrée de tous les aspects",
+      step2: "Sélectionner un projet script",
+      btnPick: "Choisir sur Drive",
+      noFile: "Aucun fichier sélectionné",
+      btnCancel: "← Annuler",
+      btnGenerate: "Générer la documentation",
+      resTitle: "Documentation Générée !",
+      resSubtitle: "Votre documentation a été créée et insérée dans le document actif.",
+      resProject: "Projet :",
+      resTemplate: "Modèle :",
+      btnClose: "Fermer",
+      loading: "Analyse du projet en cours...",
+      stepAI: "Amélioration IA (Optionnel)",
+      labelGemini: "Clé API Gemini",
+      infoGemini: "Utilise Gemini pour générer des descriptions détaillées pour vos fonctions."
+    },
+    en: {
+      title: "Start New Documentation",
+      subtitle: "Configure & Select",
+      step1: "Choose a documentation template",
+      labelTemplate: "Template",
+      optStandard: "Standard Documentation",
+      optTechnical: "Technical Deep-dive",
+      optApi: "API Reference",
+      infoTemplate: "Balanced coverage of all aspects",
+      step2: "Select a script project",
+      btnPick: "Pick Script from Drive",
+      noFile: "No file selected",
+      btnCancel: "← Cancel",
+      btnGenerate: "Generate Documentation",
+      resTitle: "Documentation Generated!",
+      resSubtitle: "Your documentation has been created and inserted into the current document.",
+      resProject: "Project:",
+      resTemplate: "Template:",
+      btnClose: "Close",
+      loading: "Analyzing project...",
+      stepAI: "AI Enhancement (Optional)",
+      labelGemini: "Gemini API Key",
+      infoGemini: "Uses Gemini to generate detailed descriptions for your functions."
+    }
+  };
+
+  function updateUI() {
+    const lang = USER_LOCALE || 'en';
+    const t = translations[lang];
+    document.querySelectorAll('[data-i18n]').forEach(el => {
+      const key = el.getAttribute('data-i18n');
+      if (t[key]) {
+        if (el.tagName === 'OPTION') {
+          el.text = t[key];
+        } else {
+          el.textContent = t[key];
+        }
+      }
+    });
+  }
+
+  /**
+   * PICKER LOGIC
+   */
+  let selectedScriptId = null;
+  let selectedScriptName = null;
+  let pickerApiLoaded = false;
+
+  document.addEventListener('DOMContentLoaded', function () {
+    updateUI();
+    initButtons();
+    gapi.load('picker', { 'callback': () => { pickerApiLoaded = true; } });
+  });
+
+  function initButtons() {
+    document.getElementById('pick-script-btn').addEventListener('click', showPicker);
+    document.getElementById('generate-btn').addEventListener('click', generateDoc);
+    document.getElementById('cancel-btn').addEventListener('click', () => google.script.host.close());
+    document.getElementById('close-btn').addEventListener('click', () => google.script.host.close());
+  }
+
+  function showPicker() {
+    if (!pickerApiLoaded) {
+      alert('Google Picker API not loaded yet. Please wait.');
+      return;
+    }
+    google.script.run
+      .withSuccessHandler(createPicker)
+      .withFailureHandler(showError)
+      .getOAuthToken();
+  }
+
+  function createPicker(token) {
+    const view = new google.picker.View(google.picker.ViewId.DOCS);
+    view.setMimeTypes('application/vnd.google-apps.script');
+
+    const picker = new google.picker.PickerBuilder()
+      .addView(view)
+      .setOAuthToken(token)
+      // Note: In some environments, an API Key is mandatory. 
+      // If this fails, you may need to add .setDeveloperKey('YOUR_API_KEY')
+      .setCallback(pickerCallback)
+      .setOrigin(google.script.host.origin)
+      .build();
+    picker.setVisible(true);
+  }
+
+  function pickerCallback(data) {
+    if (data.action === google.picker.Action.PICKED) {
+      const doc = data.docs[0];
+      selectedScriptId = doc.id;
+      selectedScriptName = doc.name;
+
+      const fileInfo = document.getElementById('file-name');
+      fileInfo.textContent = selectedScriptName;
+      fileInfo.removeAttribute('data-i18n'); // Stop translating once picked
+
+      document.getElementById('selected-file-info').classList.remove('hidden');
+      document.getElementById('generate-btn').disabled = false;
+    }
+  }
+
+  /**
+   * GENERATION LOGIC
+   */
+  function generateDoc() {
+    const template = document.getElementById('template-select').value;
+    const geminiKey = document.getElementById('gemini-key').value;
+    const overlay = document.getElementById('loading-overlay');
+    overlay.classList.remove('hidden');
+
+    google.script.run
+      .withSuccessHandler(onGenerationSuccess)
+      .withFailureHandler(showError)
+      .generateDocumentation(selectedScriptId, template, geminiKey);
+  }
+
+  function onGenerationSuccess(result) {
+    document.getElementById('loading-overlay').classList.add('hidden');
+    document.getElementById('config-step').classList.remove('active');
+    document.getElementById('success-step').classList.add('active');
+
+    document.getElementById('res-project-name').textContent = result.projectName;
+    document.getElementById('res-template').textContent = result.template;
+  }
+
+  function showError(err) {
+    document.getElementById('loading-overlay').classList.add('hidden');
+    alert('Error: ' + (err.message || err));
+  }
+</script>
