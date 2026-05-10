@@ -205,8 +205,9 @@ function generateDocumentation(scriptId, template, geminiKey) {
  * Calls Gemini AI to explain a function.
  */
 function askGemini(functionName, sourceCode, apiKey, isFr) {
-  // Using gemini-2.0-flash as it is known to work in the user's other projects.
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+  // We prioritize gemini-3-flash as requested by the user.
+  // Using the merged prompt structure which was successful with 2.0.
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash:generateContent?key=${apiKey}`;
   
   const systemInstruction = isFr 
     ? "Tu es un expert Google Apps Script. Analyse le code fourni et explique la logique métier de la fonction demandée de manière technique et concise (2 phrases max)."
@@ -236,21 +237,39 @@ function askGemini(functionName, sourceCode, apiKey, isFr) {
     const responseText = response.getContentText();
     const responseCode = response.getResponseCode();
     
-    if (responseCode === 200) {
-      const json = JSON.parse(responseText);
-      if (json.candidates && json.candidates[0].content && json.candidates[0].content.parts[0].text) {
-        let text = json.candidates[0].content.parts[0].text.trim();
-        // Remove generic AI prefixes
-        text = text.replace(/^(La fonction|Cette fonction|This function) \w+ /i, '');
-        return text.charAt(0).toUpperCase() + text.slice(1);
+    // Fallback to 2.0 if 3-flash returns 404 (model not found)
+    if (responseCode === 404) {
+      console.warn('Gemini 3 not found, falling back to 2.0...');
+      const fallbackUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+      const fallbackResponse = UrlFetchApp.fetch(fallbackUrl, options);
+      if (fallbackResponse.getResponseCode() === 200) {
+        return parseGeminiResponse(fallbackResponse.getContentText());
       }
     }
+
+    if (responseCode === 200) {
+      return parseGeminiResponse(responseText);
+    }
+    
     console.error(`Gemini Error (${responseCode}):`, responseText);
     return `[IA Error ${responseCode}]`;
   } catch (e) {
     console.error('Gemini Fetch Error:', e.message);
     return `[IA Fetch Error]`;
   }
+}
+
+/**
+ * Utility to parse Gemini response JSON
+ */
+function parseGeminiResponse(responseText) {
+  const json = JSON.parse(responseText);
+  if (json.candidates && json.candidates[0].content && json.candidates[0].content.parts[0].text) {
+    let text = json.candidates[0].content.parts[0].text.trim();
+    text = text.replace(/^(La fonction|Cette fonction|This function) \w+ /i, '');
+    return text.charAt(0).toUpperCase() + text.slice(1);
+  }
+  return null;
 }
 
 /**
