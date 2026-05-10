@@ -111,40 +111,76 @@ function generateDocumentation(settings) {
   const doc = DocumentApp.getActiveDocument();
   const body = doc.getBody();
   
-  // Persist settings
-  const userProps = PropertiesService.getUserProperties();
-  if (settings.geminiKey) userProps.setProperty('GEMINI_API_KEY', settings.geminiKey);
-  if (settings.template) userProps.setProperty('LAST_TEMPLATE', settings.template);
+  saveSettings(settings);
 
-  let projectName = "Project";
-  try {
-    const fileMetadata = DriveApp.getFileById(settings.scriptId);
-    projectName = fileMetadata.getName();
-  } catch (e) {
-    console.error("Drive Error:", e.message);
-    throw new Error(t.errDrive); 
-  }
-
+  const projectName = getProjectName(settings.scriptId, t);
+  
   // Clear or prepare
   body.appendPageBreak();
   
-  // Title Section
-  body.appendParagraph(projectName).setHeading(DocumentApp.ParagraphHeading.TITLE);
-  body.appendParagraph(`${t.docGenerated} ${new Date().toLocaleDateString()}`).setItalic(true);
-
-  // Table of Contents Note
-  const tocNote = body.appendParagraph(t.tocNote);
-  tocNote.setItalic(true).setForegroundColor('#666666');
+  // Title & Header
+  renderHeader(body, projectName, t, settings.scriptId);
 
   // Fetch Script Content
   const scriptData = getScriptContent(settings.scriptId);
   const files = scriptData.files || [];
 
-  // Section 1: Overview
-  body.appendParagraph(t.docOverview).setHeading(DocumentApp.ParagraphHeading.HEADING1);
-  body.appendParagraph(`${t.docProjId}: ${settings.scriptId}`);
+  // Render Project Structure
+  renderStructure(body, files, t);
+
+  // Render Detailed Logic
+  const logicTitle = (settings.template === 'api') ? t.docApiRef : t.docFunctions;
+  body.appendParagraph(logicTitle).setHeading(DocumentApp.ParagraphHeading.HEADING1);
+
+  files.forEach(file => {
+    if (file.type === 'server_js' || file.type === 'gs') {
+      processFile(body, file, settings, t);
+    }
+  });
+
+  return { success: true, projectName: projectName };
+}
+
+/**
+ * Persists settings to UserProperties
+ */
+function saveSettings(settings) {
+  const userProps = PropertiesService.getUserProperties();
+  if (settings.geminiKey) userProps.setProperty('GEMINI_API_KEY', settings.geminiKey);
+  if (settings.template) userProps.setProperty('LAST_TEMPLATE', settings.template);
+}
+
+/**
+ * Safely retrieves project name from Drive
+ */
+function getProjectName(scriptId, t) {
+  try {
+    const fileMetadata = DriveApp.getFileById(scriptId);
+    return fileMetadata.getName();
+  } catch (e) {
+    console.error("Drive Error:", e.message);
+    throw new Error(t.errDrive);
+  }
+}
+
+/**
+ * Renders the document header
+ */
+function renderHeader(body, projectName, t, scriptId) {
+  body.appendParagraph(projectName).setHeading(DocumentApp.ParagraphHeading.TITLE);
+  body.appendParagraph(`${t.docGenerated} ${new Date().toLocaleDateString()}`).setItalic(true);
   
-  // Section 2: Structure
+  const tocNote = body.appendParagraph(t.tocNote);
+  tocNote.setItalic(true).setForegroundColor('#666666');
+  
+  body.appendParagraph(t.docOverview).setHeading(DocumentApp.ParagraphHeading.HEADING1);
+  body.appendParagraph(`${t.docProjId}: ${scriptId}`);
+}
+
+/**
+ * Renders the file structure diagram
+ */
+function renderStructure(body, files, t) {
   body.appendParagraph(t.docStructure).setHeading(DocumentApp.ParagraphHeading.HEADING1);
   let structureStr = ".\n";
   files.forEach((file, index) => {
@@ -157,62 +193,54 @@ function generateDocumentation(settings) {
     .setFontFamily('Roboto Mono')
     .setBackgroundColor('#F1F3F4')
     .setIndentStart(20);
+}
 
-  // Section 3: Detailed Logic
-  const logicTitle = (settings.template === 'api') ? t.docApiRef : t.docFunctions;
-  body.appendParagraph(logicTitle).setHeading(DocumentApp.ParagraphHeading.HEADING1);
+/**
+ * Processes a single script file and appends its documentation
+ */
+function processFile(body, file, settings, t) {
+  const functions = parseFunctions(file.source);
+  if (functions.length === 0) return;
 
-  files.forEach(file => {
-    if (file.type === 'server_js' || file.type === 'gs') {
-      const functions = parseFunctions(file.source);
-      
-      if (functions.length > 0) {
-        body.appendParagraph(file.name).setHeading(DocumentApp.ParagraphHeading.HEADING2);
-        
-        // BATCH GEMINI CALL per file
-        let aiExplanations = {};
-        if (settings.geminiKey) {
-          aiExplanations = askGeminiBatch(file.name, functions, file.source, settings.geminiKey, settings.locale.startsWith('fr'));
-        }
+  body.appendParagraph(file.name).setHeading(DocumentApp.ParagraphHeading.HEADING2);
+  
+  let aiExplanations = {};
+  if (settings.geminiKey) {
+    aiExplanations = askGeminiBatch(file.name, functions, file.source, settings.geminiKey, settings.locale.startsWith('fr'));
+  }
 
-        functions.forEach(func => {
-          const funcPara = body.appendParagraph(`${func.name}()`);
-          funcPara.setHeading(DocumentApp.ParagraphHeading.HEADING3)
-                  .setFontFamily('Roboto Mono')
-                  .setForegroundColor('#1a73e8');
-          
-          // Documentation text
-          let docText = "";
-          
-          // JSDoc Description
-          if (func.description) docText += `${func.description}\n`;
-          
-          // AI Explanation (from batch)
-          if (aiExplanations[func.name]) {
-            docText += `✨ ${aiExplanations[func.name]}\n`;
-          }
-
-          // Params & Returns (API Template)
-          if (settings.template === 'api' && (func.params.length > 0 || func.returns)) {
-            if (func.params.length > 0) {
-              docText += `\nParameters:\n` + func.params.map(p => `• ${p.name}: ${p.description}`).join('\n') + `\n`;
-            }
-            if (func.returns) {
-              docText += `\nReturns: ${func.returns}\n`;
-            }
-          }
-
-          if (docText) {
-            body.appendParagraph(docText.trim());
-          } else {
-            body.appendParagraph(t.docNoDesc).setItalic(true);
-          }
-        });
-      }
-    }
+  functions.forEach(func => {
+    renderFunction(body, func, aiExplanations[func.name], settings, t);
   });
+}
 
-  return { success: true, projectName: projectName };
+/**
+ * Renders documentation for a single function
+ */
+function renderFunction(body, func, aiExpl, settings, t) {
+  const funcPara = body.appendParagraph(`${func.name}()`);
+  funcPara.setHeading(DocumentApp.ParagraphHeading.HEADING3)
+          .setFontFamily('Roboto Mono')
+          .setForegroundColor('#1a73e8');
+  
+  let docText = "";
+  if (func.description) docText += `${func.description}\n`;
+  if (aiExpl) docText += `✨ ${aiExpl}\n`;
+
+  if (settings.template === 'api' && (func.params.length > 0 || func.returns)) {
+    if (func.params.length > 0) {
+      docText += `\nParameters:\n` + func.params.map(p => `• ${p.name}: ${p.description}`).join('\n') + `\n`;
+    }
+    if (func.returns) {
+      docText += `\nReturns: ${func.returns}\n`;
+    }
+  }
+
+  if (docText) {
+    body.appendParagraph(docText.trim());
+  } else {
+    body.appendParagraph(t.docNoDesc).setItalic(true);
+  }
 }
 
 /**
