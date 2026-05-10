@@ -116,9 +116,12 @@ function generateDocumentation(scriptId, template, geminiKey) {
     projectName = fileMetadata.getName();
   } catch (e) {}
   
-  // 0. Metadata & Table of Contents
+  // 0. Metadata & Manual TOC Instruction
   body.appendParagraph(projectName).setHeading(DocumentApp.ParagraphHeading.HEADING1);
-  body.appendTableOfContents();
+  const tocNote = isFr 
+    ? "💡 Conseil : Insérez un sommaire via le menu 'Insertion > Sommaire' pour naviguer facilement."
+    : "💡 Tip: Insert a Table of Contents via 'Insert > Table of contents' to navigate easily.";
+  body.appendParagraph(tocNote).setItalic(true).setForegroundColor('#666666');
   body.appendPageBreak();
   
   // Section 1: Overview
