@@ -184,34 +184,30 @@ function exportToMarkdown(scriptId, locale) {
     md += `  ${prefix}${file.name}.${file.type === 'html' ? 'html' : 'gs'}\n`;
   });
   md += `\`\`\`\n\n`;
-
+  
   serverFiles.forEach(file => {
-    if (file.type === 'SERVER_JS' || file.type === 'gs') {
-      const functions = parseFunctions(file.source);
-      if (functions.length > 0) {
-        md += `## ${file.name}\n\n`;
-        functions.forEach(func => {
-          md += `### \`${func.name}()\`\n\n`;
-          if (func.description) md += `${func.description}\n\n`;
-          if (func.params.length > 0) {
-            md += `**Parameters:**\n`;
-            func.params.forEach(p => md += `- \`${p.name}\` (${p.type}): ${p.description}\n`);
-            md += `\n`;
-          }
-          if (func.returns) md += `**Returns:** ${func.returns}\n\n`;
-          md += `---\n\n`;
-        });
+    md += `## ${file.name}\n\n`;
+    const functions = parseFunctions(file.source);
+    functions.forEach(func => {
+      md += `### \`${func.name}()\`\n\n`;
+      if (func.description) md += `${func.description.trim()}\n\n`;
+      if (func.params.length > 0) {
+        md += `**Parameters:**\n`;
+        func.params.forEach(p => md += `- \`${p.name}\`: ${p.description}\n`);
+        md += `\n`;
       }
-    }
+      if (func.returns) md += `**Returns:** ${func.returns}\n\n`;
+      md += `---\n\n`;
+    });
   });
 
-  let folder;
+  let folder = DriveApp.getRootFolder();
   try {
-    const fileMeta = Drive.Files.get(scriptId, {fields: 'parents'});
-    const parentId = (fileMeta.parents && fileMeta.parents.length > 0) ? fileMeta.parents[0] : null;
-    folder = parentId ? DriveApp.getFolderById(parentId) : DriveApp.getRootFolder();
+    const file = DriveApp.getFileById(scriptId);
+    const parents = file.getParents();
+    if (parents.hasNext()) folder = parents.next();
   } catch (e) {
-    folder = DriveApp.getRootFolder();
+    console.warn("Using root folder fallback.");
   }
   
   const file = folder.createFile(`${scriptId}_doc.md`, md, MimeType.PLAIN_TEXT);
