@@ -277,10 +277,10 @@ function processFile(body, file, settings, t) {
   if (settings.geminiKey) {
     aiData = askGeminiBatch(file.name, functions, file.source, settings.geminiKey, settings.locale.startsWith('fr'));
     
-    if (aiData.overview) {
-      const overviewPara = body.appendParagraph(aiData.overview);
+    if (aiData.overview && aiData.overview.trim() !== "") {
+      const overviewPara = body.appendParagraph(aiData.overview.trim());
       overviewPara.setItalic(true).setForegroundColor('#5f6368');
-      body.appendParagraph(""); // Spacer
+      body.appendParagraph(" "); // Space instead of empty string
     }
   }
 
@@ -293,14 +293,15 @@ function processFile(body, file, settings, t) {
  * Renders documentation for a single function
  */
 function renderFunction(body, func, aiExpl, settings, t) {
-  const funcPara = body.appendParagraph(`${func.name}()`);
+  const funcName = func.name || "Unknown";
+  const funcPara = body.appendParagraph(`${funcName}()`);
   funcPara.setHeading(DocumentApp.ParagraphHeading.HEADING3)
           .setFontFamily('Roboto Mono')
           .setForegroundColor('#1a73e8');
   
   let docText = "";
-  if (func.description) docText += `${func.description}\n`;
-  if (aiExpl) docText += `✨ ${aiExpl}\n`;
+  if (func.description && func.description.trim() !== "") docText += `${func.description.trim()}\n`;
+  if (aiExpl && aiExpl.trim() !== "") docText += `✨ ${aiExpl.trim()}\n`;
 
   if (settings.template === 'api' && (func.params.length > 0 || func.returns)) {
     if (func.params.length > 0) {
@@ -311,10 +312,10 @@ function renderFunction(body, func, aiExpl, settings, t) {
     }
   }
 
-  if (docText) {
+  if (docText && docText.trim() !== "") {
     body.appendParagraph(docText.trim());
   } else {
-    body.appendParagraph(t.docNoDesc).setItalic(true);
+    body.appendParagraph(t.docNoDesc || "No description available.").setItalic(true);
   }
 }
 
