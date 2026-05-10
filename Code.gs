@@ -102,6 +102,7 @@ function generateDocumentation(scriptId, template, geminiKey) {
   const doc = DocumentApp.getActiveDocument();
   const body = doc.getBody();
   const locale = Session.getActiveUserLocale();
+  const isFr = locale.startsWith('fr');
   const t = getI18n(locale);
   
   // 1. Fetch content
