@@ -123,7 +123,7 @@ function startGeneration(settings) {
   renderHeader(body, projectName, t, settings.scriptId);
 
   const scriptData = getScriptContent(settings.scriptId);
-  const files = scriptData.files.filter(f => f.type === 'server_js' || f.type === 'gs');
+  const files = scriptData.files.filter(f => f.type === 'SERVER_JS' || f.type === 'gs');
 
   renderStructure(body, scriptData.files, t);
   body.appendParagraph(t.docFunctions).setHeading(DocumentApp.ParagraphHeading.HEADING1);
@@ -172,6 +172,7 @@ function exportToMarkdown(scriptId, locale) {
   const t = getI18n(locale);
   const scriptData = getScriptContent(scriptId);
   const files = scriptData.files || [];
+  const serverFiles = files.filter(f => f.type === 'SERVER_JS' || f.type === 'gs');
   
   let md = `# ${scriptId}\n\n`;
   md += `> ${t.docGenerated} ${new Date().toLocaleDateString()}\n\n`;
@@ -184,8 +185,8 @@ function exportToMarkdown(scriptId, locale) {
   });
   md += `\`\`\`\n\n`;
 
-  files.forEach(file => {
-    if (file.type === 'server_js' || file.type === 'gs') {
+  serverFiles.forEach(file => {
+    if (file.type === 'SERVER_JS' || file.type === 'gs') {
       const functions = parseFunctions(file.source);
       if (functions.length > 0) {
         md += `## ${file.name}\n\n`;
@@ -249,7 +250,7 @@ function renderStructure(body, files, t) {
   files.forEach((file, index) => {
     const isLast = index === files.length - 1;
     const prefix = isLast ? "└── " : "├── ";
-    const ext = file.type === 'html' ? 'html' : 'gs';
+    const ext = (file.type === 'HTML' || file.type === 'html') ? 'html' : 'gs';
     structureStr += `  ${prefix}${file.name}.${ext}\n`;
   });
   body.appendParagraph(structureStr)
